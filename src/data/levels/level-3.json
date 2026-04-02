@@ -1,0 +1,46 @@
+{
+  "id": "level-3",
+  "number": 3,
+  "name": "Level 3",
+  "grid": {
+    "width": 6,
+    "height": 5
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "position": { "x": 0, "y": 0 },
+      "neighbors": [3, 4]
+    },
+    {
+      "id": 2,
+      "position": { "x": 0, "y": 4 },
+      "neighbors": [4]
+    },
+    {
+      "id": 3,
+      "position": { "x": 2, "y": 1 },
+      "neighbors": [5]
+    },
+    {
+      "id": 4,
+      "position": { "x": 2, "y": 3 },
+      "neighbors": [5, 6]
+    },
+    {
+      "id": 5,
+      "position": { "x": 4, "y": 2 },
+      "neighbors": [7]
+    },
+    {
+      "id": 6,
+      "position": { "x": 4, "y": 4 },
+      "neighbors": [7]
+    },
+    {
+      "id": 7,
+      "position": { "x": 5, "y": 2 },
+      "neighbors": []
+    }
+  ]
+}

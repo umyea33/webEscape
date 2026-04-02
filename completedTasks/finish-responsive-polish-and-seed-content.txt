@@ -1,0 +1,20 @@
+Task: Finish Responsive Polish and Seed Content
+
+Description:
+Finalize safe-area handling, orientation responsiveness, starter level content, and any minimal polish needed so the app feels coherent across phones, tablets, and web.
+
+Relevant AppSpecification.md References:
+- "RESPONSIVE LAYOUT"
+- "The game should work across phones, tablets, and web window sizes, including orientation changes and safe-area insets."
+- "READABILITY, USABILITY and REUSABILITY"
+
+Current Status:
+Completed.
+
+Previous Attempts That Didn't Work:
+- None yet.
+
+Useful Notes:
+- This task should happen after the core screens and gameplay are working.
+- Safe-area coverage now includes the full home and game surfaces, and both screens adapt into larger-screen layouts for tablets and web.
+- The seeded campaign now includes five JSON levels, which is enough to demonstrate the complete loop from the home screen through multiple boards.

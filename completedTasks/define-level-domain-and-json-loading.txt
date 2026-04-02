@@ -1,0 +1,23 @@
+Task: Define Level Domain and JSON Loading
+
+Description:
+Implement the core model classes for Level, Graph, and Node, define the JSON level format, and load JSON files into strongly typed model objects while computing node in-degrees after load.
+
+Relevant AppSpecification.md References:
+- "On the model side there will be an x by y grid and a directed graph datastructure object."
+- "To do this you will have three classes: Level, Graph, and Node."
+- "Level will contain the grid size x and y, and a graph object."
+- "Each level will be stored in a json file..."
+- "When the user first loads up a level then the json level will be converted to the level, graph, and node objects. After the graph is loaded into the objects then the in-degree of each node will be calculated and stored in the node object."
+- "MODULARITY"
+
+Current Status:
+Completed.
+
+Previous Attempts That Didn't Work:
+- None that need repeating avoidance.
+
+Useful Notes:
+- Completed with `Level`, `Graph`, and `Node` classes plus JSON-backed level definitions in `src/data/levels/`.
+- Level validation now checks duplicate node ids, out-of-bounds coordinates, and missing neighbor references before constructing the model.
+- Graph construction computes and stores in-degrees immediately after JSON is converted into model objects.

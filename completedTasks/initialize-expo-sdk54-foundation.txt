@@ -1,0 +1,23 @@
+Task: Initialize Expo SDK 54 Foundation
+
+Description:
+Set up the React Native + Expo project so it runs on Android, iOS, and web, with versions compatible with Expo Go client 54.0.6 and a codebase layout that supports MVVM.
+
+Relevant AppSpecification.md References:
+- "This is a react native app that should be able to run on android, iOS, and web."
+- "I need this to be able to run on the Expo Go android app (Client version 54.0.6 with the Supported SDK being 54). Set up the app to be able to do this and use language versions that will also allow this version of expo go."
+- "I want the app to be designed with a Model-View-ViewModel (MVVM) architecture."
+- "READABILITY, USABILITY and REUSABILITY"
+- "MODULARITY"
+
+Current Status:
+Completed.
+
+Previous Attempts That Didn't Work:
+- `npm install` initially resolved `react-native@0.81.6`, which expected a newer React patch than Expo SDK 54 recommends.
+- Fix: pin the Expo-compatible runtime set (`react-native@0.81.5`, `react@19.1.0`, `react-dom@19.1.0`) and verify with `npx expo install --check`.
+
+Useful Notes:
+- Completed with a manual Expo 54 scaffold rather than `create-expo-app@latest` so the SDK version would match Expo Go 54.
+- Verification completed with `npm run typecheck`, `npx expo install --check`, `npx expo config --type public`, and `npx expo export --platform web`.
+- The project now has a working TypeScript/Expo app shell, MVVM-oriented `src/` structure, and dependency versions aligned to SDK 54.

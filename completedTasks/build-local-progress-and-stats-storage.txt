@@ -1,0 +1,21 @@
+Task: Build Local Progress and Stats Storage
+
+Description:
+Add local persistence for current level, player progress, lives-related outcomes, and home-screen stats using SQLite, while keeping level definitions in JSON files instead of the database.
+
+Relevant AppSpecification.md References:
+- "You can use SQLite to store a few things locally like current level, progress, and stats."
+- "Note the levels will be in .json files and will not be stored in SQLite."
+- "I will eventually be syncing this to an online database like supabase and periodically be syncing the local database to the online one. Note I am still going to want the local database when this happens."
+
+Current Status:
+Completed.
+
+Previous Attempts That Didn't Work:
+- Direct Expo SQLite table usage on web would have required extra Metro WASM configuration and COOP/COEP headers.
+- Fix: use Expo's `expo-sqlite/localStorage/install` shim so native platforms still persist through Expo SQLite while web can run with the browser `localStorage` behavior.
+
+Useful Notes:
+- Implemented in `src/storage/playerProgressStore.ts` with a single persisted progress object.
+- Stored fields currently include current level, completed levels, total attempts, total mistakes, and perfect clears.
+- The storage surface remains small and can be swapped behind the same load/save functions later.

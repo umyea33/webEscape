@@ -1,0 +1,29 @@
+Task: Build Scrollable Zoomable Graph View
+
+Description:
+Implement the game-screen view that renders the optional debug grid, node circles, and directed edges/arrows for arbitrary level sizes, with panning/scrolling and bounded white-space overscroll up to half the screen in every direction plus controlled zooming.
+
+Relevant AppSpecification.md References:
+- "The view in its most basic form will not show the grid... for debugging and developing purposes I want to view it as just dots..."
+- "On top of this grid whether it is visible or invisible will be the graph."
+- "I want a node to be shown as a circle..."
+- "The circles will have arrows that point to each of their neighbors."
+- "The game screen will need to be able to take in different sizes of the grid and also take in different graphs to display."
+- "The grid (with the graph on top of it) will need to be scrollable horizontally and vertically."
+- "I need to be able to scroll past the actual grid until half the screen is the grid and half the screen is just white space..."
+- "The game screen also needs to be able to zoom in and out a certain degree."
+- "Zooming in and out shouldn't affect how much of the screen the user can scroll off to..."
+- "RESPONSIVE LAYOUT"
+
+Current Status:
+Completed.
+
+Previous Attempts That Didn't Work:
+- None yet.
+
+Useful Notes:
+- This may require choosing a rendering approach that works across Expo Android, iOS, and web.
+- Keep rendering concerns in the view layer and interaction/game rules in the model/view-model layers.
+- Current implementation uses `react-native-svg` for the grid and arrows plus absolutely positioned pressable node views for reliable interaction and shake animations.
+- Horizontal and vertical scrolling plus button-based zoom are implemented, and the board now measures its visible viewport so overscroll remains capped to half of the actual board frame on each axis.
+- The board rendering has been tuned for responsive layouts so the white-space gutter behavior stays consistent across phones, tablets, and web window sizes.

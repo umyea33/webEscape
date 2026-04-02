@@ -1,0 +1,25 @@
+Task: Implement Gameplay Loop and Node Interactions
+
+Description:
+Wire node taps/clicks through the view-model into the model so valid nodes disappear with an edge fade animation, invalid nodes shake and cost a life, neighbor in-degrees update correctly, and level completion advances progress and returns to the home screen.
+
+Relevant AppSpecification.md References:
+- "When a user is playing a level they will be able to click or tap on each of the nodes of the graph."
+- "If the in-degree of the node is greater than 0 then the node will shake and the player will lose a life."
+- "If the in-degree of the node is 0 then the node will disappear..."
+- "When the node disappears, each of its neighbors' in-degrees should decrease by 1."
+- "When all the nodes have disappeared then the level is complete and the game should go back to the home screen..."
+- "The view will know what to show based on the information provided by the model."
+- "MODULARITY"
+
+Current Status:
+In progress.
+
+Previous Attempts That Didn't Work:
+- None yet.
+
+Useful Notes:
+- Start each level with two lives.
+- Keep model mutations centralized; the view should only report user interactions and render state.
+- Valid node removal, neighbor in-degree updates, blocked-node shake, life loss, retry after lives hit zero, progress advancement, and return-home-on-completion are implemented.
+- The current edge removal animation retracts and fades outgoing arrows from the removed node, but it may still need visual polish to fully match the intended effect.

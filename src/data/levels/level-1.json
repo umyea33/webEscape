@@ -1,0 +1,31 @@
+{
+  "id": "level-1",
+  "number": 1,
+  "name": "Level 1",
+  "grid": {
+    "width": 4,
+    "height": 4
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "position": { "x": 0, "y": 0 },
+      "neighbors": [2, 3]
+    },
+    {
+      "id": 2,
+      "position": { "x": 1, "y": 1 },
+      "neighbors": [4]
+    },
+    {
+      "id": 3,
+      "position": { "x": 1, "y": 3 },
+      "neighbors": [4]
+    },
+    {
+      "id": 4,
+      "position": { "x": 2, "y": 2 },
+      "neighbors": []
+    }
+  ]
+}

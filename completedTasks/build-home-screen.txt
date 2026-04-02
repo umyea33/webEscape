@@ -1,0 +1,20 @@
+Task: Build Home Screen
+
+Description:
+Create the home screen that shows the current level, a play button, and a few player stats sourced from view-model state and persistence.
+
+Relevant AppSpecification.md References:
+- "This is a game that has two main screens the home screen and the game screen."
+- "The home screen will simply display which level the current user is on, a play button, and a few stats."
+- "When all the nodes have disappeared then the level is complete and the game should go back to the home screen and obviously the home screen will now show the next level..."
+- "RESPONSIVE LAYOUT"
+
+Current Status:
+Completed.
+
+Previous Attempts That Didn't Work:
+- None that need documenting.
+
+Useful Notes:
+- Implemented with a current-level hero card, persisted stats, and a play button that launches the current playable level.
+- When all seeded levels are completed the home screen now changes messaging and offers a replay path for the final level.
