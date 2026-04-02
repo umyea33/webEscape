@@ -13,13 +13,14 @@ Relevant AppSpecification.md References:
 - "MODULARITY"
 
 Current Status:
-In progress.
+Completed.
 
 Previous Attempts That Didn't Work:
-- None yet.
+- None that need repeating avoidance.
 
 Useful Notes:
 - Start each level with two lives.
 - Keep model mutations centralized; the view should only report user interactions and render state.
 - Valid node removal, neighbor in-degree updates, blocked-node shake, life loss, retry after lives hit zero, progress advancement, and return-home-on-completion are implemented.
-- The current edge removal animation retracts and fades outgoing arrows from the removed node, but it may still need visual polish to fully match the intended effect.
+- The removal animation retracts and fades outgoing arrows from the removed node while a temporary ghost node fades out at the source.
+- Verified with `npm run typecheck`, `npx expo install --check`, and `npx expo export --platform web`.
