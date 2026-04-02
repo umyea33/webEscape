@@ -3,3 +3,5 @@ First, look at AppSpecification.md to see what you are doing and take all of wha
 As you are working through this you need a way to manage tasks.  Use a folder called tasks that stores all your undone tasks.  You can put completed tasks inside a folder called completedTasks.  Inside your tasks folder each task will be a text file that contains the task description, any references to AppSpecification.md that are needed, the current status of the task, any previous atempts that didn't work (so these aren't repeated), and any other relevant information that will be useful when someone is trying to complete it.  Name the task file a short description of the task.
 
 As you first get a problem then break it down into reasonable sized tasks and add all the tasks to the task folder then you can see which one you want to do right now and do it.
+
+Commit and push your changes with a commit message before you leave so there can be a history of what happened.
