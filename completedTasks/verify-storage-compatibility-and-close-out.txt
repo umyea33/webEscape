@@ -1,0 +1,21 @@
+Task: Verify Storage Compatibility and Close Out
+
+Description:
+Run the relevant checks after the storage migration, then update the task records so the undone/completed folders accurately reflect what changed and why.
+
+Relevant AppSpecification.md References:
+- "I need this to be able to run on the Expo Go android app..."
+- "RESPONSIVE LAYOUT"
+- "READABILITY, USABILITY and REUSABILITY"
+
+Current Status:
+Completed.
+
+Previous Attempts That Didn't Work:
+- The initial verification run caught a web export failure because the shared storage module imported `expo-sqlite`, which made Metro resolve the web WASM worker.
+
+Useful Notes:
+- At minimum rerun type-checking and a build/export check that exercises the web target.
+- Capture any compatibility caveats in the completed task notes so future work does not repeat the same dead ends.
+- Verified with `npm run typecheck`, `npx expo install --check`, and `npx expo export --platform web` after the platform-specific storage split.
+- The web build remains intentionally on browser `localStorage`; enabling SQLite on web later will require the official Expo web SQLite setup for WASM assets and COOP/COEP headers.

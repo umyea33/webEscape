@@ -19,3 +19,4 @@ Useful Notes:
 - Implemented in `src/storage/playerProgressStore.ts` with a single persisted progress object.
 - Stored fields currently include current level, completed levels, total attempts, total mistakes, and perfect clears.
 - The storage surface remains small and can be swapped behind the same load/save functions later.
+- Follow-up work later replaced the native shim-only approach with an explicit SQLite table while preserving the lighter web fallback; see `completedTasks/migrate-native-progress-storage-to-explicit-sqlite.txt`.

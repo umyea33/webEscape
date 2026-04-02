@@ -1,0 +1,24 @@
+Task: Migrate Native Progress Storage to Explicit SQLite
+
+Description:
+Replace the current native progress persistence shim with an explicit SQLite-backed player progress table while preserving the existing web fallback and avoiding data loss for anyone who already has progress stored through the old key-value shim.
+
+Relevant AppSpecification.md References:
+- "You can use SQLite to store a few things locally like current level, progress, and stats."
+- "Note the levels will be in .json files and will not be stored in SQLite."
+- "I need this to be able to run on the Expo Go android app..."
+
+Current Status:
+Completed.
+
+Previous Attempts That Didn't Work:
+- The earlier implementation relied on `expo-sqlite/localStorage/install`, which kept the app simple but did not provide an explicit SQLite table/repository shape for native progress data.
+- Full cross-platform `expo-sqlite` database usage on web would require extra Metro WASM setup and COOP/COEP headers, so this task should keep a simpler web fallback unless the web build config is updated too.
+- A first pass imported `expo-sqlite` from a shared storage module, which broke the web export because Metro then tried to bundle the SQLite WASM worker without the extra web setup.
+
+Useful Notes:
+- Preserve the existing MVVM call sites if possible so the view-model stays simple.
+- Migrate legacy native progress from the old storage key if it exists.
+- Keep the storage surface small and readable so future sync work can build on it.
+- The finished implementation now uses `src/storage/playerProgressStore.native.ts` for native SQLite persistence, `src/storage/playerProgressStore.ts` for the web fallback, and `src/storage/playerProgressStore.shared.ts` for shared typing/sanitizing logic.
+- Native startup migrates any existing progress from the old SQLite-backed key-value shim into the new `player_progress` table before writing future updates there.
