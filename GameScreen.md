@@ -1,3 +1,7 @@
 The game screen will have a white background.  The graph portion will take up the entire screen except a little bar on the top that only has a restart button (small circle button with a restart icon on it), a home button (small circle button with a home icon on it), and the amount of lives the user has.  To show the amount of lives a user has, use a red heart to show a live they have and a gray heart to show a life that they don't have.  So if they have all their lives the top bar will have two red hearts on it.  If they lose 1 life the top bar will show 1 red heart and 1 gray heart.  The top bar will also have a button to show the grid.  So the bar will look like this (Home, Restart,     Lives,        Grid).  Lives go in the middle, home and restart go on the left, and the show grid button goes on the left.
 
-I want the nodes to have a black border and I want the arrows to also be black.  
+I want the nodes to have a black border and I want the arrows to also be black.
+
+Zooming in and out should not be handled by a button, but should be handled how zooming in and out works on a phone by just pressing and spreading out your fingers to zoom in or pressing and compressing your fingers to zoom out.
+
+The scrolling should be able to move vertically and horizontally at the same time.
