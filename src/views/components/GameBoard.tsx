@@ -553,7 +553,7 @@ function edgeVector(start: { x: number; y: number }, end: { x: number; y: number
 
   return {
     arrowPoints: `${lineEnd.x},${lineEnd.y} ${leftPoint.x},${leftPoint.y} ${rightPoint.x},${rightPoint.y}`,
-    lineEnd,
+    lineEnd: arrowBase,
     lineStart,
   };
 }
