@@ -5,8 +5,9 @@ import levelTwo from './level-2.json';
 import levelThree from './level-3.json';
 import levelFour from './level-4.json';
 import levelFive from './level-5.json';
+import levelSix from './level-6.json';
 
-export const levelDefinitions: LevelDefinition[] = [levelOne, levelTwo, levelThree, levelFour, levelFive].sort(
+export const levelDefinitions: LevelDefinition[] = [levelOne, levelTwo, levelThree, levelFour, levelFive, levelSix].sort(
   (left, right) => left.number - right.number,
 );
 
