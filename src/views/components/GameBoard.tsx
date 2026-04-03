@@ -430,7 +430,7 @@ function NodeToken({
         style={({ pressed }) => [
           styles.node,
           isReady ? styles.nodeReady : styles.nodeBlocked,
-          pressed && !isInteractionLocked ? styles.nodePressed : null,
+          null,
         ]}
       />
     </Animated.View>
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
   removalGhost: {
     alignItems: 'center',
     backgroundColor: palette.nodeBackground,
-    borderColor: palette.secondary,
+    borderColor: '#000000',
     borderRadius: 999,
     borderWidth: 3,
     justifyContent: 'center',
