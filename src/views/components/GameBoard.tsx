@@ -3,7 +3,6 @@ import {
   Animated,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -30,15 +29,11 @@ type GameBoardProps = {
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 1.55;
-
 const BASE_GRID_UNIT = 54;
+const TAP_DISTANCE_THRESHOLD = 8;
 
-function getTouchDistance(touches: React.TouchList) {
-  const t0 = touches[0];
-  const t1 = touches[1];
-  const dx = t0.pageX - t1.pageX;
-  const dy = t0.pageY - t1.pageY;
-  return Math.hypot(dx, dy);
+function getDistance(x1: number, y1: number, x2: number, y2: number) {
+  return Math.hypot(x2 - x1, y2 - y1);
 }
 
 export function GameBoard({
@@ -53,65 +48,19 @@ export function GameBoard({
   onNodePress,
 }: GameBoardProps) {
   const windowSize = useWindowDimensions();
-  const horizontalScrollRef = useRef<ScrollView>(null);
-  const verticalScrollRef = useRef<ScrollView>(null);
-  const [didPrimeScrollPosition, setDidPrimeScrollPosition] = useState(false);
+  const viewportRef = useRef<View>(null);
   const [frameSize, setFrameSize] = useState({ height: 0, width: 0 });
   const [removalProgress, setRemovalProgress] = useState(1);
   const removalAnimationValue = useRef(new Animated.Value(1)).current;
 
+  // Pan/scroll offset (translation applied to the board)
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const offsetRef = useRef({ x: 0, y: 0 });
+
+  // Gesture tracking refs
+  const panRef = useRef<{ startPageX: number; startPageY: number; startOffsetX: number; startOffsetY: number } | null>(null);
   const pinchRef = useRef<{ startDistance: number; startZoom: number } | null>(null);
-  const viewportRef = useRef<View>(null);
-
-  const handleWheel = useCallback(
-    (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        const delta = -e.deltaY * 0.001;
-        setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom + delta)));
-      }
-    },
-    [zoom, setZoom],
-  );
-
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-    const node = viewportRef.current as unknown as HTMLElement | null;
-    if (!node) return;
-    node.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {
-      node.removeEventListener('wheel', handleWheel);
-    };
-  }, [handleWheel]);
-
-  const onTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      const nativeEvent = e.nativeEvent as unknown as TouchEvent;
-      if (nativeEvent.touches.length === 2) {
-        pinchRef.current = {
-          startDistance: getTouchDistance(nativeEvent.touches as unknown as React.TouchList),
-          startZoom: zoom,
-        };
-      }
-    },
-    [zoom],
-  );
-
-  const onTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      const nativeEvent = e.nativeEvent as unknown as TouchEvent;
-      if (nativeEvent.touches.length === 2 && pinchRef.current) {
-        const currentDistance = getTouchDistance(nativeEvent.touches as unknown as React.TouchList);
-        const scale = currentDistance / pinchRef.current.startDistance;
-        setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchRef.current.startZoom * scale)));
-      }
-    },
-    [setZoom],
-  );
-
-  const onTouchEnd = useCallback(() => {
-    pinchRef.current = null;
-  }, []);
+  const wasPinchingRef = useRef(false);
 
   const gridUnit = BASE_GRID_UNIT * zoom;
   const nodeRadius = gridUnit;
@@ -125,29 +74,153 @@ export function GameBoard({
   const activeNodes = level.graph.getActiveNodes();
   const activeEdges = level.graph.getActiveEdges();
 
-  useEffect(() => {
-    setDidPrimeScrollPosition(false);
-  }, [level.id, viewportHeight, viewportWidth]);
+  const clampOffset = useCallback(
+    (x: number, y: number) => {
+      const minX = Math.min(0, viewportWidth - boardWidth - overscrollX);
+      const maxX = overscrollX;
+      const minY = Math.min(0, viewportHeight - boardHeight - overscrollY);
+      const maxY = overscrollY;
+      return {
+        x: Math.min(maxX, Math.max(minX, x)),
+        y: Math.min(maxY, Math.max(minY, y)),
+      };
+    },
+    [boardWidth, boardHeight, viewportWidth, viewportHeight, overscrollX, overscrollY],
+  );
 
+  // Reset offset when level or viewport changes
   useEffect(() => {
-    if (didPrimeScrollPosition || viewportWidth === 0 || viewportHeight === 0) {
-      return;
+    if (viewportWidth === 0 || viewportHeight === 0) return;
+    const initial = clampOffset(0, 0);
+    offsetRef.current = initial;
+    setOffset(initial);
+  }, [level.id, viewportWidth, viewportHeight, clampOffset]);
+
+  // Re-clamp offset when zoom changes (board size changes)
+  useEffect(() => {
+    const clamped = clampOffset(offsetRef.current.x, offsetRef.current.y);
+    if (clamped.x !== offsetRef.current.x || clamped.y !== offsetRef.current.y) {
+      offsetRef.current = clamped;
+      setOffset(clamped);
     }
+  }, [zoom, clampOffset]);
 
-    const primeScroll = requestAnimationFrame(() => {
-      horizontalScrollRef.current?.scrollTo({ x: overscrollX, animated: false });
-      verticalScrollRef.current?.scrollTo({ y: overscrollY, animated: false });
-      setDidPrimeScrollPosition(true);
-    });
+  // --- Touch handlers (pan + pinch) ---
+  const onTouchStart = useCallback(
+    (e: any) => {
+      const touches = e.nativeEvent.touches ?? e.nativeEvent.changedTouches;
+      if (!touches) return;
 
-    return () => cancelAnimationFrame(primeScroll);
-  }, [didPrimeScrollPosition, overscrollX, overscrollY, viewportHeight, viewportWidth]);
+      if (touches.length === 2) {
+        const dist = getDistance(touches[0].pageX, touches[0].pageY, touches[1].pageX, touches[1].pageY);
+        pinchRef.current = { startDistance: dist, startZoom: zoom };
+        panRef.current = null;
+        wasPinchingRef.current = true;
+      } else if (touches.length === 1) {
+        panRef.current = {
+          startPageX: touches[0].pageX,
+          startPageY: touches[0].pageY,
+          startOffsetX: offsetRef.current.x,
+          startOffsetY: offsetRef.current.y,
+        };
+        wasPinchingRef.current = false;
+      }
+    },
+    [zoom],
+  );
 
+  const onTouchMove = useCallback(
+    (e: any) => {
+      const touches = e.nativeEvent.touches ?? e.nativeEvent.changedTouches;
+      if (!touches) return;
+
+      if (touches.length === 2 && pinchRef.current) {
+        const dist = getDistance(touches[0].pageX, touches[0].pageY, touches[1].pageX, touches[1].pageY);
+        const scale = dist / pinchRef.current.startDistance;
+        setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchRef.current.startZoom * scale)));
+      } else if (touches.length === 1 && panRef.current && !wasPinchingRef.current) {
+        const dx = touches[0].pageX - panRef.current.startPageX;
+        const dy = touches[0].pageY - panRef.current.startPageY;
+        const clamped = clampOffset(panRef.current.startOffsetX + dx, panRef.current.startOffsetY + dy);
+        offsetRef.current = clamped;
+        setOffset(clamped);
+      }
+    },
+    [setZoom, clampOffset],
+  );
+
+  const onTouchEnd = useCallback(() => {
+    pinchRef.current = null;
+    panRef.current = null;
+  }, []);
+
+  // --- Mouse handlers for web (drag to pan, wheel to scroll, ctrl+wheel to zoom) ---
+  const mouseDragRef = useRef<{ startPageX: number; startPageY: number; startOffsetX: number; startOffsetY: number } | null>(null);
+
+  const onMouseDown = useCallback((e: any) => {
+    // Only left-click
+    if (e.button !== undefined && e.button !== 0) return;
+    mouseDragRef.current = {
+      startPageX: e.pageX ?? e.nativeEvent?.pageX,
+      startPageY: e.pageY ?? e.nativeEvent?.pageY,
+      startOffsetX: offsetRef.current.x,
+      startOffsetY: offsetRef.current.y,
+    };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const node = viewportRef.current as unknown as HTMLElement | null;
+    if (!node) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!mouseDragRef.current) return;
+      const dx = e.pageX - mouseDragRef.current.startPageX;
+      const dy = e.pageY - mouseDragRef.current.startPageY;
+
+      // Only start dragging after passing tap threshold to avoid eating node clicks
+      if (Math.abs(dx) < TAP_DISTANCE_THRESHOLD && Math.abs(dy) < TAP_DISTANCE_THRESHOLD) return;
+
+      const clamped = clampOffset(mouseDragRef.current.startOffsetX + dx, mouseDragRef.current.startOffsetY + dy);
+      offsetRef.current = clamped;
+      setOffset(clamped);
+    };
+
+    const handleMouseUp = () => {
+      mouseDragRef.current = null;
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = -e.deltaY * 0.001;
+        setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom + delta)));
+      } else {
+        // Regular wheel scrolls the board
+        const clamped = clampOffset(offsetRef.current.x - e.deltaX, offsetRef.current.y - e.deltaY);
+        offsetRef.current = clamped;
+        setOffset(clamped);
+      }
+    };
+
+    node.addEventListener('mousemove', handleMouseMove);
+    node.addEventListener('mouseup', handleMouseUp);
+    node.addEventListener('mouseleave', handleMouseUp);
+    node.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      node.removeEventListener('mousemove', handleMouseMove);
+      node.removeEventListener('mouseup', handleMouseUp);
+      node.removeEventListener('mouseleave', handleMouseUp);
+      node.removeEventListener('wheel', handleWheel);
+    };
+  }, [zoom, setZoom, clampOffset]);
+
+  // --- Removal animation ---
   useEffect(() => {
     const listener = removalAnimationValue.addListener(({ value }) => {
       setRemovalProgress(value);
     });
-
     return () => {
       removalAnimationValue.removeListener(listener);
     };
@@ -159,9 +232,7 @@ export function GameBoard({
       setRemovalProgress(1);
       return;
     }
-
     removalAnimationValue.setValue(0);
-
     Animated.timing(removalAnimationValue, {
       toValue: 1,
       duration: 320,
@@ -178,8 +249,15 @@ export function GameBoard({
   }));
 
   const boardStyle = useMemo(
-    () => [styles.board, { height: boardHeight, width: boardWidth }],
-    [boardHeight, boardWidth],
+    () => [
+      styles.board,
+      {
+        height: boardHeight,
+        width: boardWidth,
+        transform: [{ translateX: offset.x }, { translateY: offset.y }],
+      },
+    ],
+    [boardHeight, boardWidth, offset.x, offset.y],
   );
 
   return (
@@ -187,93 +265,76 @@ export function GameBoard({
       ref={viewportRef}
       onLayout={(event) => {
         const { height, width } = event.nativeEvent.layout;
-
         setFrameSize((previousSize) =>
           previousSize.height === height && previousSize.width === width
             ? previousSize
             : { height, width },
         );
       }}
-      onTouchStart={onTouchStart as unknown as View['props']['onTouchStart']}
-      onTouchMove={onTouchMove as unknown as View['props']['onTouchMove']}
-      onTouchEnd={onTouchEnd as unknown as View['props']['onTouchEnd']}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      {...(Platform.OS === 'web' ? { onMouseDown } : {})}
       style={styles.viewportFrame}
     >
-      <ScrollView
-        horizontal
-        ref={horizontalScrollRef}
-        contentContainerStyle={{ paddingHorizontal: overscrollX }}
-        showsHorizontalScrollIndicator={false}
-        style={styles.axisScroller}
-      >
-        <ScrollView
-          ref={verticalScrollRef}
-          contentContainerStyle={{ paddingVertical: overscrollY }}
-          nestedScrollEnabled
-          showsVerticalScrollIndicator={false}
-          style={[styles.axisScroller, { width: boardWidth }]}
-        >
-          <View style={boardStyle}>
-            <Svg height={boardHeight} pointerEvents="none" style={StyleSheet.absoluteFill} width={boardWidth}>
-              {showGrid ? renderGrid(level, gridUnit) : null}
-              {activeEdges.map((edge) => renderEdge(edge.from, edge.to, level.gridHeight, gridUnit, nodeRadius))}
+      <View style={boardStyle}>
+        <Svg height={boardHeight} pointerEvents="none" style={StyleSheet.absoluteFill} width={boardWidth}>
+          {showGrid ? renderGrid(level, gridUnit) : null}
+          {activeEdges.map((edge) => renderEdge(edge.from, edge.to, level.gridHeight, gridUnit, nodeRadius))}
 
-              {removalEvent && removalSourcePoint ? (
-                <G opacity={1 - removalProgress}>
-                  {removalNeighborPoints?.map(({ snapshot, point }) =>
-                    renderAnimatedEdge(
-                      removalEvent.source,
-                      snapshot,
-                      removalSourcePoint,
-                      point,
-                      level.gridHeight,
-                      gridUnit,
-                      nodeRadius,
-                      removalProgress,
-                    ),
-                  )}
-                </G>
-              ) : null}
-            </Svg>
+          {removalEvent && removalSourcePoint ? (
+            <G opacity={1 - removalProgress}>
+              {removalNeighborPoints?.map(({ snapshot, point }) =>
+                renderAnimatedEdge(
+                  removalEvent.source,
+                  snapshot,
+                  removalSourcePoint,
+                  point,
+                  level.gridHeight,
+                  gridUnit,
+                  nodeRadius,
+                  removalProgress,
+                ),
+              )}
+            </G>
+          ) : null}
+        </Svg>
 
-            {activeNodes.map((node) => {
-              const point = toBoardPoint(node, level.gridHeight, gridUnit);
+        {activeNodes.map((node) => {
+          const point = toBoardPoint(node, level.gridHeight, gridUnit);
+          return (
+            <NodeToken
+              blockedEventToken={blockedEventToken}
+              blockedNodeId={blockedNodeId}
+              isInteractionLocked={isInteractionLocked}
+              key={node.id}
+              node={node}
+              onPress={onNodePress}
+              point={point}
+              radius={nodeRadius}
+            />
+          );
+        })}
 
-              return (
-                <NodeToken
-                  blockedEventToken={blockedEventToken}
-                  blockedNodeId={blockedNodeId}
-                  isInteractionLocked={isInteractionLocked}
-                  key={node.id}
-                  node={node}
-                  onPress={onNodePress}
-                  point={point}
-                  radius={nodeRadius}
-                />
-              );
-            })}
-
-            {removalEvent && removalSourcePoint ? (
-              <View
-                pointerEvents="none"
-                style={[
-                  styles.removalGhost,
-                  {
-                    height: nodeRadius * 2,
-                    left: removalSourcePoint.x - nodeRadius,
-                    opacity: 1 - removalProgress,
-                    top: removalSourcePoint.y - nodeRadius,
-                    transform: [{ scale: 1 - removalProgress * 0.12 }],
-                    width: nodeRadius * 2,
-                  },
-                ]}
-              >
-                <Text style={styles.nodeId}>{removalEvent.source.id}</Text>
-              </View>
-            ) : null}
+        {removalEvent && removalSourcePoint ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.removalGhost,
+              {
+                height: nodeRadius * 2,
+                left: removalSourcePoint.x - nodeRadius,
+                opacity: 1 - removalProgress,
+                top: removalSourcePoint.y - nodeRadius,
+                transform: [{ scale: 1 - removalProgress * 0.12 }],
+                width: nodeRadius * 2,
+              },
+            ]}
+          >
+            <Text style={styles.nodeId}>{removalEvent.source.id}</Text>
           </View>
-        </ScrollView>
-      </ScrollView>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -473,15 +534,8 @@ function lerp(start: number, end: number, progress: number) {
 }
 
 const styles = StyleSheet.create({
-  axisScroller: {
-    flex: 1,
-  },
   board: {
-    backgroundColor: palette.canvas,
-    borderColor: palette.border,
-    borderRadius: 28,
-    borderWidth: 1,
-    overflow: 'hidden',
+    backgroundColor: '#ffffff',
   },
   node: {
     alignItems: 'center',
@@ -527,9 +581,6 @@ const styles = StyleSheet.create({
   },
   viewportFrame: {
     backgroundColor: '#ffffff',
-    borderColor: palette.border,
-    borderRadius: 28,
-    borderWidth: 1,
     flex: 1,
     minHeight: 360,
     overflow: 'hidden',
