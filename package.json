@@ -8,7 +8,14 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "jest-expo/web",
+    "roots": [
+      "<rootDir>/tests"
+    ]
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -22,8 +29,14 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
+    "jest-expo": "~54.0.0",
+    "react-test-renderer": "19.1.0",
     "typescript": "~5.9.3"
   }
 }
