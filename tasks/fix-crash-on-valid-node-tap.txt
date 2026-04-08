@@ -1,0 +1,25 @@
+Task: Fix Crash on Valid Node Tap
+
+Description:
+The app sometimes crashes on the game screen when tapping a node that has an in-degree of 0 (a valid/removable node). Tapping invalid nodes (in-degree > 0) does not crash. The root cause is that the view reads directly from mutable model objects during render (GameBoard.tsx lines 82–83 call level.graph.getActiveNodes() and level.graph.getActiveEdges()). When the Animated.Value listener from a removal animation fires setRemovalProgress(), it triggers a re-render that can occur while the model has been mutated by tapNode() but before the corresponding React state update (setRemovalEvent) has been committed. This means the view can render a mix of new model state and old React state, producing inconsistent references that cause a crash.
+
+Relevant AppSpecification.md References:
+- "If the in-degree of the node is 0 then the node will disappear..."
+- "When the node disappears, each of its neighbors' in-degrees should decrease by 1."
+- "The model will inform the ViewModel about if the node has an in-degree of 0 or not..."
+- "The view will know what to show based on the information provided by the ViewModel (typically gotten from the model)."
+- "MODULARITY"
+
+Current Status:
+Not started.
+
+Previous Attempts That Didn't Work:
+- Added a graphVersion counter as React state in useAppViewModel. Incremented it after each tapNode() removal. Passed it as a prop through GameScreen to GameBoard. In GameBoard, wrapped the activeNodes and activeEdges computations in useMemo keyed on [level, graphVersion] so that animation-driven re-renders would reuse cached values instead of re-reading from the mutable model. This did not fix the bug because useMemo only controls when the values are recomputed — it does not prevent the underlying mutable Node objects (whose inDegree and removed fields change in place) from being read in an inconsistent state by other parts of the render (e.g., NodeToken reading node.inDegree directly).
+
+Useful Notes:
+- The model classes (Level, Graph, Node) are correct in isolation — the bug is at the boundary where the view reads mutable model state.
+- Graph.tapNode() mutates Node objects in place: sets node.removed = true and calls neighbor.decreaseInDegree().
+- GameBoard.tsx reads from the mutable model during render at lines 82–83 and NodeToken reads node.inDegree at line 396.
+- The removal animation listener (line 254) calls setRemovalProgress() on every animation frame, triggering re-renders that re-read the mutable model.
+- The fix needs to ensure the view only sees fully consistent model state. This likely means the view should consume immutable snapshots delivered through React state rather than reading mutable model objects directly.
+- Tests exist at tests/jest/Models/Graph.test.ts and tests/react-native-testing-library/Views/GameBoard.test.tsx that verify the model and ViewModel behavior, but they cannot reproduce the runtime timing race because Jest runs synchronously without real animation frames.
