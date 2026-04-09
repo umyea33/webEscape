@@ -111,9 +111,8 @@ export function useGameViewModel(
     }
   }, [activeLevel]);
 
-  const hasFadingNode = graphSnapshot.nodes.some((node) => node.status === 'fading');
   const isOutOfLives = activeLevel.isOutOfLives();
-  const isInteractionLocked = isCompleting || isOutOfLives || hasFadingNode;
+  const isInteractionLocked = isCompleting || isOutOfLives;
 
   const retryLevel = useCallback(() => {
     beginLevel(activeLevel.number);

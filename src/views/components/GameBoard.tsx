@@ -52,8 +52,10 @@ export function GameBoard({
   const windowSize = useWindowDimensions();
   const viewportRef = useRef<View>(null);
   const [frameSize, setFrameSize] = useState({ height: 0, width: 0 });
-  const [removalProgress, setRemovalProgress] = useState(0);
-  const removalAnimationValue = useRef(new Animated.Value(0)).current;
+
+  // Per-node fade animation tracking
+  const fadeAnimationsRef = useRef<Map<number, { animatedValue: Animated.Value; progress: number }>>(new Map());
+  const [, forceRender] = useState(0);
 
   // Pan/scroll offset (translation applied to the board)
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -80,8 +82,6 @@ export function GameBoard({
   const viewportHeight = frameSize.height || windowSize.height;
   const overscrollX = viewportWidth / 2;
   const overscrollY = viewportHeight / 2;
-
-  const fadingNode = activeNodes.find((node) => node.status === 'fading') ?? null;
 
   const clampOffset = useCallback(
     (x: number, y: number, z: number) => {
@@ -250,35 +250,63 @@ export function GameBoard({
     };
   }, [zoom, setZoom, clampOffset]);
 
-  // --- Removal animation driven by fading node status ---
-  useEffect(() => {
-    const listener = removalAnimationValue.addListener(({ value }) => {
-      setRemovalProgress(value);
-    });
-    return () => {
-      removalAnimationValue.removeListener(listener);
-    };
-  }, [removalAnimationValue]);
+  // --- Per-node removal animations driven by fading status ---
+  const fadingNodeIds = activeNodes
+    .filter((node) => node.status === 'fading')
+    .map((node) => node.id);
 
   useEffect(() => {
-    if (!fadingNode) {
-      removalAnimationValue.setValue(0);
-      setRemovalProgress(0);
-      return;
+    const animations = fadeAnimationsRef.current;
+
+    // Start animations for newly fading nodes
+    for (const nodeId of fadingNodeIds) {
+      if (animations.has(nodeId)) continue;
+
+      const animatedValue = new Animated.Value(0);
+      const entry = { animatedValue, progress: 0 };
+      animations.set(nodeId, entry);
+
+      const listener = animatedValue.addListener(({ value }) => {
+        entry.progress = value;
+        forceRender((c) => c + 1);
+      });
+
+      Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 320,
+        useNativeDriver: false,
+      }).start(({ finished }) => {
+        if (finished) {
+          animatedValue.removeListener(listener);
+          animations.delete(nodeId);
+          onRemovalComplete(nodeId);
+        }
+      });
     }
 
-    removalAnimationValue.setValue(0);
-
-    Animated.timing(removalAnimationValue, {
-      toValue: 1,
-      duration: 320,
-      useNativeDriver: false,
-    }).start(({ finished }) => {
-      if (finished) {
-        onRemovalComplete(fadingNode.id);
+    // Clean up entries for nodes no longer in the list (e.g. level reset)
+    for (const nodeId of animations.keys()) {
+      if (!fadingNodeIds.includes(nodeId)) {
+        animations.get(nodeId)!.animatedValue.stopAnimation();
+        animations.delete(nodeId);
       }
-    });
-  }, [fadingNode?.id, onRemovalComplete, removalAnimationValue]);
+    }
+  });
+
+  // Clean up all animations on unmount
+  useEffect(() => {
+    const animations = fadeAnimationsRef.current;
+    return () => {
+      for (const entry of animations.values()) {
+        entry.animatedValue.stopAnimation();
+      }
+      animations.clear();
+    };
+  }, []);
+
+  function getFadeProgress(nodeId: number): number {
+    return fadeAnimationsRef.current.get(nodeId)?.progress ?? 0;
+  }
 
   const fadingEdges = activeEdges.filter((edge) => edge.status === 'fading');
   const visibleEdges = activeEdges.filter((edge) => edge.status === 'active');
@@ -320,22 +348,23 @@ export function GameBoard({
           {showGrid ? renderGrid(levelView, gridUnit) : null}
           {visibleEdges.map((edge) => renderEdge(edge, levelView.gridHeight, gridUnit, nodeRadius))}
 
-          {fadingEdges.length > 0 && fadingNode ? (
-            <G opacity={1 - removalProgress}>
-              {fadingEdges.map((edge) => {
-                const fromPoint = toBoardPoint({ x: edge.fromX, y: edge.fromY }, levelView.gridHeight, gridUnit);
-                const toPoint = toBoardPoint({ x: edge.toX, y: edge.toY }, levelView.gridHeight, gridUnit);
-                return renderAnimatedEdge(
+          {fadingEdges.map((edge) => {
+            const progress = getFadeProgress(edge.fromId);
+            const fromPoint = toBoardPoint({ x: edge.fromX, y: edge.fromY }, levelView.gridHeight, gridUnit);
+            const toPoint = toBoardPoint({ x: edge.toX, y: edge.toY }, levelView.gridHeight, gridUnit);
+            return (
+              <G key={`fading-edge-${edge.fromId}-${edge.toId}`} opacity={1 - progress}>
+                {renderAnimatedEdge(
                   edge.fromId,
                   edge.toId,
                   fromPoint,
                   toPoint,
                   nodeRadius,
-                  removalProgress,
-                );
-              })}
-            </G>
-          ) : null}
+                  progress,
+                )}
+              </G>
+            );
+          })}
         </Svg>
 
         {activeNodes.map((node) => {
@@ -350,7 +379,7 @@ export function GameBoard({
               onPress={onNodePress}
               point={point}
               radius={nodeRadius}
-              fadeProgress={node.status === 'fading' ? removalProgress : 0}
+              fadeProgress={node.status === 'fading' ? getFadeProgress(node.id) : 0}
             />
           );
         })}

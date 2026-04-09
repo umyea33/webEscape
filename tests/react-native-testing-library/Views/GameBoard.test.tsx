@@ -101,18 +101,12 @@ describe('GameBoard after tapping a valid node', () => {
     expect(node3After.inDegree).toBe(0);
   });
 
-  it('locks interaction while a node is fading', () => {
+  it('does not lock interaction while a node is fading', () => {
     const level = buildLevel();
     const { result } = renderGameViewModel(level);
 
     act(() => {
       result.current.handleNodePress(1);
-    });
-
-    expect(result.current.isInteractionLocked).toBe(true);
-
-    act(() => {
-      result.current.handleRemovalComplete(1);
     });
 
     expect(result.current.isInteractionLocked).toBe(false);
