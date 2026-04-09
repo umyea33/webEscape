@@ -6,10 +6,7 @@ export type GraphEdge = {
 };
 
 export type GraphTapResult =
-  | {
-      kind: 'blocked';
-      node: Node;
-    }
+  | { kind: 'blocked'; nodeId: number }
   | {
       kind: 'removed';
       node: Node;
@@ -49,10 +46,7 @@ export class Graph {
     const node = this.nodesById.get(nodeId);
 
     if (!node || node.inDegree > 0) {
-      return {
-        kind: 'blocked',
-        node: node ?? new Node(nodeId, 0, 0, []),
-      };
+      return { kind: 'blocked', nodeId };
     }
 
     const affectedNeighbors = node.neighbors

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import Svg, { Circle as SvgCircle, G, Line, Polygon } from 'react-native-svg';
 
-import type { EdgeView, LevelView, NodeView, RemovalAnimationSnapshot } from '../../viewModels/useGameViewModel';
+import type { EdgeView, LevelView, NodeView } from '../../viewModels/useGameViewModel';
 import { palette, spacing, typography } from '../theme';
 
 type GameBoardProps = {
@@ -23,8 +23,8 @@ type GameBoardProps = {
   blockedNodeId: number | null;
   blockedEventToken: number;
   isInteractionLocked: boolean;
-  removalEvent: RemovalAnimationSnapshot | null;
   onNodePress: (nodeId: number) => void;
+  onRemovalComplete: (nodeId: number) => void;
 };
 
 const MIN_ZOOM = 0.25;
@@ -46,14 +46,14 @@ export function GameBoard({
   blockedNodeId,
   blockedEventToken,
   isInteractionLocked,
-  removalEvent,
   onNodePress,
+  onRemovalComplete,
 }: GameBoardProps) {
   const windowSize = useWindowDimensions();
   const viewportRef = useRef<View>(null);
   const [frameSize, setFrameSize] = useState({ height: 0, width: 0 });
-  const [removalProgress, setRemovalProgress] = useState(1);
-  const removalAnimationValue = useRef(new Animated.Value(1)).current;
+  const [removalProgress, setRemovalProgress] = useState(0);
+  const removalAnimationValue = useRef(new Animated.Value(0)).current;
 
   // Pan/scroll offset (translation applied to the board)
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -80,6 +80,8 @@ export function GameBoard({
   const viewportHeight = frameSize.height || windowSize.height;
   const overscrollX = viewportWidth / 2;
   const overscrollY = viewportHeight / 2;
+
+  const fadingNode = activeNodes.find((node) => node.status === 'fading') ?? null;
 
   const clampOffset = useCallback(
     (x: number, y: number, z: number) => {
@@ -248,7 +250,7 @@ export function GameBoard({
     };
   }, [zoom, setZoom, clampOffset]);
 
-  // --- Removal animation ---
+  // --- Removal animation driven by fading node status ---
   useEffect(() => {
     const listener = removalAnimationValue.addListener(({ value }) => {
       setRemovalProgress(value);
@@ -259,26 +261,27 @@ export function GameBoard({
   }, [removalAnimationValue]);
 
   useEffect(() => {
-    if (!removalEvent) {
-      removalAnimationValue.setValue(1);
-      setRemovalProgress(1);
+    if (!fadingNode) {
+      removalAnimationValue.setValue(0);
+      setRemovalProgress(0);
       return;
     }
+
     removalAnimationValue.setValue(0);
+
     Animated.timing(removalAnimationValue, {
       toValue: 1,
       duration: 320,
       useNativeDriver: false,
-    }).start();
-  }, [removalAnimationValue, removalEvent]);
+    }).start(({ finished }) => {
+      if (finished) {
+        onRemovalComplete(fadingNode.id);
+      }
+    });
+  }, [fadingNode?.id, onRemovalComplete, removalAnimationValue]);
 
-  const removalSourcePoint = removalEvent
-    ? toBoardPoint(removalEvent.source, levelView.gridHeight, gridUnit)
-    : null;
-  const removalNeighborPoints = removalEvent?.neighbors.map((neighbor) => ({
-    snapshot: neighbor,
-    point: toBoardPoint(neighbor, levelView.gridHeight, gridUnit),
-  }));
+  const fadingEdges = activeEdges.filter((edge) => edge.status === 'fading');
+  const visibleEdges = activeEdges.filter((edge) => edge.status === 'active');
 
   const boardStyle = useMemo(
     () => [
@@ -315,22 +318,22 @@ export function GameBoard({
       <View style={boardStyle}>
         <Svg height={boardHeight} pointerEvents="none" style={StyleSheet.absoluteFill} width={boardWidth}>
           {showGrid ? renderGrid(levelView, gridUnit) : null}
-          {activeEdges.map((edge) => renderEdge(edge, levelView.gridHeight, gridUnit, nodeRadius))}
+          {visibleEdges.map((edge) => renderEdge(edge, levelView.gridHeight, gridUnit, nodeRadius))}
 
-          {removalEvent && removalSourcePoint ? (
+          {fadingEdges.length > 0 && fadingNode ? (
             <G opacity={1 - removalProgress}>
-              {removalNeighborPoints?.map(({ snapshot, point }) =>
-                renderAnimatedEdge(
-                  removalEvent.source,
-                  snapshot,
-                  removalSourcePoint,
-                  point,
-                  levelView.gridHeight,
-                  gridUnit,
+              {fadingEdges.map((edge) => {
+                const fromPoint = toBoardPoint({ x: edge.fromX, y: edge.fromY }, levelView.gridHeight, gridUnit);
+                const toPoint = toBoardPoint({ x: edge.toX, y: edge.toY }, levelView.gridHeight, gridUnit);
+                return renderAnimatedEdge(
+                  edge.fromId,
+                  edge.toId,
+                  fromPoint,
+                  toPoint,
                   nodeRadius,
                   removalProgress,
-                ),
-              )}
+                );
+              })}
             </G>
           ) : null}
         </Svg>
@@ -347,26 +350,10 @@ export function GameBoard({
               onPress={onNodePress}
               point={point}
               radius={nodeRadius}
+              fadeProgress={node.status === 'fading' ? removalProgress : 0}
             />
           );
         })}
-
-        {removalEvent && removalSourcePoint ? (
-          <View
-            pointerEvents="none"
-            style={[
-              styles.removalGhost,
-              {
-                height: nodeRadius * 2,
-                left: removalSourcePoint.x - nodeRadius,
-                opacity: 1 - removalProgress,
-                top: removalSourcePoint.y - nodeRadius,
-                transform: [{ scale: 1 - removalProgress * 0.12 }],
-                width: nodeRadius * 2,
-              },
-            ]}
-          />
-        ) : null}
       </View>
     </View>
   );
@@ -380,6 +367,7 @@ type NodeTokenProps = {
   onPress: (nodeId: number) => void;
   point: { x: number; y: number };
   radius: number;
+  fadeProgress: number;
 };
 
 function NodeToken({
@@ -390,9 +378,11 @@ function NodeToken({
   onPress,
   point,
   radius,
+  fadeProgress,
 }: NodeTokenProps) {
   const shake = useRef(new Animated.Value(0)).current;
   const isReady = node.inDegree === 0;
+  const isFading = node.status === 'fading';
 
   useEffect(() => {
     if (blockedNodeId !== node.id || blockedEventToken === 0) {
@@ -418,13 +408,17 @@ function NodeToken({
           height: radius * 2,
           left: point.x - radius,
           top: point.y - radius,
-          transform: [{ translateX: shake }],
+          opacity: isFading ? 1 - fadeProgress : 1,
+          transform: [
+            { translateX: shake },
+            { scale: isFading ? 1 - fadeProgress * 0.12 : 1 },
+          ],
           width: radius * 2,
         },
       ]}
     >
       <Pressable
-        disabled={isInteractionLocked}
+        disabled={isInteractionLocked || isFading}
         onPress={() => onPress(node.id)}
         style={({ pressed }) => [
           styles.node,
@@ -481,12 +475,10 @@ function renderEdge(edge: EdgeView, gridHeight: number, gridUnit: number, nodeRa
 }
 
 function renderAnimatedEdge(
-  from: { id: number; x: number; y: number },
-  to: { id: number; x: number; y: number },
+  fromId: number,
+  toId: number,
   fromPoint: { x: number; y: number },
   toPoint: { x: number; y: number },
-  gridHeight: number,
-  gridUnit: number,
   nodeRadius: number,
   progress: number,
 ) {
@@ -497,7 +489,7 @@ function renderAnimatedEdge(
   };
 
   return (
-    <G key={`removal-edge-${from.id}-${to.id}`} opacity={1 - progress * 0.5}>
+    <G key={`removal-edge-${fromId}-${toId}`} opacity={1 - progress * 0.5}>
       <Line
         stroke={palette.edge}
         strokeLinecap="round"
@@ -593,15 +585,6 @@ const styles = StyleSheet.create({
     borderColor: '#000000',
   },
   nodeWrapper: {
-    position: 'absolute',
-  },
-  removalGhost: {
-    alignItems: 'center',
-    backgroundColor: palette.nodeBackground,
-    borderColor: '#000000',
-    borderRadius: 999,
-    borderWidth: 3,
-    justifyContent: 'center',
     position: 'absolute',
   },
   viewportFrame: {

@@ -1,14 +1,17 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Level } from '../models/Level';
-import type { NodeSnapshot } from '../models/Node';
 import type { PlayerProgress } from '../storage/playerProgressStore';
+
+export type NodeStatus = 'active' | 'fading';
+export type EdgeStatus = 'active' | 'fading';
 
 export type NodeView = {
   id: number;
   x: number;
   y: number;
   inDegree: number;
+  status: NodeStatus;
 };
 
 export type EdgeView = {
@@ -18,6 +21,7 @@ export type EdgeView = {
   toId: number;
   toX: number;
   toY: number;
+  status: EdgeStatus;
 };
 
 export type LevelView = {
@@ -26,10 +30,9 @@ export type LevelView = {
   gridHeight: number;
 };
 
-export type RemovalAnimationSnapshot = {
-  token: number;
-  source: NodeSnapshot;
-  neighbors: NodeSnapshot[];
+type GraphSnapshot = {
+  nodes: NodeView[];
+  edges: EdgeView[];
 };
 
 export type GameViewModel = {
@@ -39,12 +42,12 @@ export type GameViewModel = {
   blockedNodeId: number | null;
   currentLevelLabel: string;
   handleNodePress: (nodeId: number) => void;
+  handleRemovalComplete: (nodeId: number) => void;
   isInteractionLocked: boolean;
   isOutOfLives: boolean;
   levelSummary: string;
   levelView: LevelView;
   livesRemaining: number;
-  removalEvent: RemovalAnimationSnapshot | null;
   retryLevel: () => void;
   returnHome: () => void;
   setZoom: (newZoom: number) => void;
@@ -53,9 +56,29 @@ export type GameViewModel = {
   zoom: number;
 };
 
-const DEFAULT_LIVES = 2;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 1.55;
+
+function createGraphSnapshot(level: Level): GraphSnapshot {
+  return {
+    nodes: level.graph.getActiveNodes().map((n) => ({
+      id: n.id,
+      x: n.x,
+      y: n.y,
+      inDegree: n.inDegree,
+      status: 'active' as const,
+    })),
+    edges: level.graph.getActiveEdges().map((e) => ({
+      fromId: e.from.id,
+      fromX: e.from.x,
+      fromY: e.from.y,
+      toId: e.to.id,
+      toX: e.to.x,
+      toY: e.to.y,
+      status: 'active' as const,
+    })),
+  };
+}
 
 export function useGameViewModel(
   activeLevel: Level,
@@ -65,13 +88,32 @@ export function useGameViewModel(
 ): GameViewModel {
   const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventTokenRef = useRef(0);
-  const [livesRemaining, setLivesRemaining] = useState(DEFAULT_LIVES);
+  const [graphSnapshot, setGraphSnapshot] = useState<GraphSnapshot>(() => createGraphSnapshot(activeLevel));
+  const [livesRemaining, setLivesRemaining] = useState(activeLevel.getLivesRemaining());
   const [showGrid, setShowGrid] = useState(false);
   const [zoom, setZoom] = useState(0.5);
   const [blockedNodeId, setBlockedNodeId] = useState<number | null>(null);
   const [blockedEventToken, setBlockedEventToken] = useState(0);
-  const [removalEvent, setRemovalEvent] = useState<RemovalAnimationSnapshot | null>(null);
-  const [isInteractionLocked, setIsInteractionLocked] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  useEffect(() => {
+    setGraphSnapshot(createGraphSnapshot(activeLevel));
+    setLivesRemaining(activeLevel.getLivesRemaining());
+    setBlockedNodeId(null);
+    setBlockedEventToken(0);
+    setIsCompleting(false);
+    setShowGrid(false);
+    setZoom(0.5);
+
+    if (completionTimeoutRef.current) {
+      clearTimeout(completionTimeoutRef.current);
+      completionTimeoutRef.current = null;
+    }
+  }, [activeLevel]);
+
+  const hasFadingNode = graphSnapshot.nodes.some((node) => node.status === 'fading');
+  const isOutOfLives = activeLevel.isOutOfLives();
+  const isInteractionLocked = isCompleting || isOutOfLives || hasFadingNode;
 
   const retryLevel = useCallback(() => {
     beginLevel(activeLevel.number);
@@ -79,48 +121,66 @@ export function useGameViewModel(
 
   const handleNodePress = useCallback(
     (nodeId: number) => {
-      if (isInteractionLocked || livesRemaining <= 0) {
+      if (isInteractionLocked) {
         return;
       }
 
-      const tapResult = activeLevel.graph.tapNode(nodeId);
+      const tapResult = activeLevel.tapNode(nodeId);
 
       if (tapResult.kind === 'blocked') {
-        const nextLives = Math.max(0, livesRemaining - 1);
-
         eventTokenRef.current += 1;
         setBlockedNodeId(nodeId);
         setBlockedEventToken(eventTokenRef.current);
-        setLivesRemaining(nextLives);
+        setLivesRemaining(tapResult.livesRemaining);
         persistProgress((previousProgress) => ({
           ...previousProgress,
           totalMistakes: previousProgress.totalMistakes + 1,
         }));
 
-        if (nextLives === 0) {
-          setIsInteractionLocked(true);
-        }
-
         return;
       }
 
-      eventTokenRef.current += 1;
-      setRemovalEvent({
-        token: eventTokenRef.current,
-        source: tapResult.node.toSnapshot(),
-        neighbors: tapResult.affectedNeighbors.map((neighbor) => neighbor.toSnapshot()),
-      });
       setBlockedNodeId(null);
       setBlockedEventToken(0);
+
+      const updatedNeighborDegrees = new Map(
+        tapResult.affectedNeighbors.map((n) => [n.id, n.inDegree]),
+      );
+
+      setGraphSnapshot((previous) => ({
+        nodes: previous.nodes.map((node) => {
+          if (node.id === tapResult.nodeId) {
+            return { ...node, status: 'fading' as const };
+          }
+
+          const nextInDegree = updatedNeighborDegrees.get(node.id);
+          return nextInDegree !== undefined ? { ...node, inDegree: nextInDegree } : node;
+        }),
+        edges: previous.edges.map((edge) =>
+          edge.fromId === tapResult.nodeId
+            ? { ...edge, status: 'fading' as const }
+            : edge,
+        ),
+      }));
+    },
+    [activeLevel, isInteractionLocked, persistProgress],
+  );
+
+  const handleRemovalComplete = useCallback(
+    (nodeId: number) => {
+      setGraphSnapshot((previous) => ({
+        nodes: previous.nodes.filter((node) => node.id !== nodeId),
+        edges: previous.edges.filter((edge) => edge.fromId !== nodeId && edge.toId !== nodeId),
+      }));
 
       if (!activeLevel.graph.isComplete()) {
         return;
       }
 
       const completedLevelNumber = activeLevel.number;
-      const clearedPerfectly = livesRemaining === DEFAULT_LIVES;
+      const clearedPerfectly = activeLevel.getLivesRemaining() === activeLevel.maxLives;
 
-      setIsInteractionLocked(true);
+      setIsCompleting(true);
 
       completionTimeoutRef.current = setTimeout(() => {
         persistProgress((previousProgress) => ({
@@ -135,38 +195,26 @@ export function useGameViewModel(
         returnHome();
       }, 340);
     },
-    [activeLevel, isInteractionLocked, livesRemaining, persistProgress, returnHome],
+    [activeLevel, persistProgress, returnHome],
   );
 
   return {
-    activeEdges: activeLevel.graph.getActiveEdges().map((e) => ({
-      fromId: e.from.id,
-      fromX: e.from.x,
-      fromY: e.from.y,
-      toId: e.to.id,
-      toX: e.to.x,
-      toY: e.to.y,
-    })),
-    activeNodes: activeLevel.graph.getActiveNodes().map((n) => ({
-      id: n.id,
-      x: n.x,
-      y: n.y,
-      inDegree: n.inDegree,
-    })),
+    activeEdges: graphSnapshot.edges,
+    activeNodes: graphSnapshot.nodes,
     blockedEventToken,
     blockedNodeId,
     currentLevelLabel: activeLevel.name,
     handleNodePress,
+    handleRemovalComplete,
     isInteractionLocked,
-    isOutOfLives: livesRemaining === 0,
-    levelSummary: `Grid ${activeLevel.gridWidth} x ${activeLevel.gridHeight} with ${activeLevel.graph.getNodes().length} nodes.`,
+    isOutOfLives,
+    levelSummary: `Grid ${activeLevel.gridWidth} x ${activeLevel.gridHeight} with ${graphSnapshot.nodes.length} nodes.`,
     levelView: {
       id: activeLevel.id,
       gridWidth: activeLevel.gridWidth,
       gridHeight: activeLevel.gridHeight,
     },
     livesRemaining,
-    removalEvent,
     retryLevel,
     returnHome,
     setZoom: (newZoom: number) => {

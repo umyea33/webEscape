@@ -2,7 +2,6 @@ import { act, renderHook } from '@testing-library/react';
 
 import { getPlayableLevelDefinition } from '../../../src/data/levels';
 import { Level } from '../../../src/models/Level';
-import { defaultPlayerProgress } from '../../../src/storage/playerProgressStore.shared';
 import { useGameViewModel } from '../../../src/viewModels/useGameViewModel';
 
 /**
@@ -11,7 +10,7 @@ import { useGameViewModel } from '../../../src/viewModels/useGameViewModel';
  *
  * These tests exercise the GameViewModel's handleNodePress to verify that
  * after tapping a valid node, the snapshot state exposed to the view
- * (activeNodes, activeEdges) is fully consistent.
+ * (activeNodes, activeEdges) follows the fading workflow correctly.
  */
 
 function buildLevel(): Level {
@@ -24,53 +23,71 @@ function renderGameViewModel(level: Level) {
   const returnHome = jest.fn();
   const beginLevel = jest.fn();
 
-  return renderHook(() =>
-    useGameViewModel(level, persistProgress, returnHome, beginLevel),
-  );
+  return {
+    ...renderHook(() =>
+      useGameViewModel(level, persistProgress, returnHome, beginLevel),
+    ),
+    persistProgress,
+    returnHome,
+  };
 }
 
 describe('GameBoard after tapping a valid node', () => {
-  it('removes the tapped node from active nodes immediately', () => {
+  it('sets the tapped node to fading status', () => {
     const level = buildLevel();
     const { result } = renderGameViewModel(level);
 
-    // All four nodes should be active initially
-    expect(result.current.activeNodes.map((n: { id: number }) => n.id)).toEqual([1, 2, 3, 4]);
-
-    // Tap node 1 (in-degree 0)
     act(() => {
       result.current.handleNodePress(1);
     });
 
-    // Node 1 should no longer be in active nodes
-    const activeIds = result.current.activeNodes.map((n: { id: number }) => n.id);
+    const fadingNode = result.current.activeNodes.find((n) => n.id === 1);
+    expect(fadingNode).toBeDefined();
+    expect(fadingNode!.status).toBe('fading');
+  });
+
+  it('sets edges from the tapped node to fading status', () => {
+    const level = buildLevel();
+    const { result } = renderGameViewModel(level);
+
+    act(() => {
+      result.current.handleNodePress(1);
+    });
+
+    const fadingEdges = result.current.activeEdges.filter((e) => e.status === 'fading');
+    const fadingPairs = fadingEdges.map((e) => [e.fromId, e.toId]);
+    expect(fadingPairs).toContainEqual([1, 2]);
+    expect(fadingPairs).toContainEqual([1, 3]);
+
+    const activeEdges = result.current.activeEdges.filter((e) => e.status === 'active');
+    const activePairs = activeEdges.map((e) => [e.fromId, e.toId]);
+    expect(activePairs).toContainEqual([2, 4]);
+    expect(activePairs).toContainEqual([3, 4]);
+  });
+
+  it('removes the node from snapshot after handleRemovalComplete', () => {
+    const level = buildLevel();
+    const { result } = renderGameViewModel(level);
+
+    act(() => {
+      result.current.handleNodePress(1);
+    });
+
+    act(() => {
+      result.current.handleRemovalComplete(1);
+    });
+
+    const activeIds = result.current.activeNodes.map((n) => n.id);
     expect(activeIds).not.toContain(1);
     expect(activeIds).toEqual([2, 3, 4]);
   });
 
-  it('removes edges from the tapped node immediately', () => {
+  it('updates neighbor in-degrees immediately on tap', () => {
     const level = buildLevel();
     const { result } = renderGameViewModel(level);
 
-    act(() => {
-      result.current.handleNodePress(1);
-    });
-
-    const edgePairs = result.current.activeEdges.map((e: { fromId: number; toId: number }) => [e.fromId, e.toId]);
-    expect(edgePairs).not.toContainEqual([1, 2]);
-    expect(edgePairs).not.toContainEqual([1, 3]);
-    // Edge 2→4 and 3→4 should still exist
-    expect(edgePairs).toContainEqual([2, 4]);
-    expect(edgePairs).toContainEqual([3, 4]);
-  });
-
-  it('updates neighbor in-degrees immediately after removal', () => {
-    const level = buildLevel();
-    const { result } = renderGameViewModel(level);
-
-    // Before tap, nodes 2 and 3 have in-degree 1
-    const node2Before = result.current.activeNodes.find((n: { id: number }) => n.id === 2)!;
-    const node3Before = result.current.activeNodes.find((n: { id: number }) => n.id === 3)!;
+    const node2Before = result.current.activeNodes.find((n) => n.id === 2)!;
+    const node3Before = result.current.activeNodes.find((n) => n.id === 3)!;
     expect(node2Before.inDegree).toBe(1);
     expect(node3Before.inDegree).toBe(1);
 
@@ -78,44 +95,64 @@ describe('GameBoard after tapping a valid node', () => {
       result.current.handleNodePress(1);
     });
 
-    // After removing node 1, nodes 2 and 3 should have in-degree 0
-    const node2After = result.current.activeNodes.find((n: { id: number }) => n.id === 2)!;
-    const node3After = result.current.activeNodes.find((n: { id: number }) => n.id === 3)!;
+    const node2After = result.current.activeNodes.find((n) => n.id === 2)!;
+    const node3After = result.current.activeNodes.find((n) => n.id === 3)!;
     expect(node2After.inDegree).toBe(0);
     expect(node3After.inDegree).toBe(0);
   });
 
-  it('stays consistent through sequential removals without crashing', () => {
+  it('locks interaction while a node is fading', () => {
     const level = buildLevel();
     const { result } = renderGameViewModel(level);
 
-    // Tap node 1 (in-degree 0)
     act(() => {
       result.current.handleNodePress(1);
     });
 
-    expect(result.current.activeNodes.map((n: { id: number }) => n.id)).toEqual([2, 3, 4]);
+    expect(result.current.isInteractionLocked).toBe(true);
 
-    // Tap node 2 (now in-degree 0)
+    act(() => {
+      result.current.handleRemovalComplete(1);
+    });
+
+    expect(result.current.isInteractionLocked).toBe(false);
+  });
+
+  it('stays consistent through sequential tap-and-complete cycles', () => {
+    const level = buildLevel();
+    const { result } = renderGameViewModel(level);
+
+    // Tap and complete node 1
+    act(() => { result.current.handleNodePress(1); });
+    act(() => { result.current.handleRemovalComplete(1); });
+    expect(result.current.activeNodes.map((n) => n.id)).toEqual([2, 3, 4]);
+
+    // Tap and complete node 2
+    act(() => { result.current.handleNodePress(2); });
+    act(() => { result.current.handleRemovalComplete(2); });
+    expect(result.current.activeNodes.map((n) => n.id)).toEqual([3, 4]);
+
+    // Tap and complete node 3
+    act(() => { result.current.handleNodePress(3); });
+    act(() => { result.current.handleRemovalComplete(3); });
+    expect(result.current.activeNodes.map((n) => n.id)).toEqual([4]);
+
+    // Tap and complete node 4
+    act(() => { result.current.handleNodePress(4); });
+    act(() => { result.current.handleRemovalComplete(4); });
+    expect(result.current.activeNodes).toEqual([]);
+  });
+
+  it('decrements lives via the model when a blocked node is tapped', () => {
+    const level = buildLevel();
+    const { result } = renderGameViewModel(level);
+
+    // Node 2 has in-degree 1, should be blocked
     act(() => {
       result.current.handleNodePress(2);
     });
 
-    expect(result.current.activeNodes.map((n: { id: number }) => n.id)).toEqual([3, 4]);
-
-    // Tap node 3 (now in-degree 0)
-    act(() => {
-      result.current.handleNodePress(3);
-    });
-
-    expect(result.current.activeNodes.map((n: { id: number }) => n.id)).toEqual([4]);
-
-    // Tap node 4 (now in-degree 0) — completes the level
-    act(() => {
-      result.current.handleNodePress(4);
-    });
-
-    // All nodes should be removed
-    expect(result.current.activeNodes).toEqual([]);
+    expect(result.current.livesRemaining).toBe(1);
+    expect(result.current.blockedNodeId).toBe(2);
   });
 });

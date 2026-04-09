@@ -21,6 +21,23 @@ export type LevelDefinition = {
   nodes: LevelNodeDefinition[];
 };
 
+export type LevelTapResult =
+  | {
+      kind: 'blocked';
+      nodeId: number;
+      livesRemaining: number;
+      isOutOfLives: boolean;
+    }
+  | {
+      kind: 'removed';
+      nodeId: number;
+      affectedNeighbors: Array<{ id: number; inDegree: number }>;
+      livesRemaining: number;
+      isComplete: boolean;
+    };
+
+const DEFAULT_MAX_LIVES = 2;
+
 export class Level {
   readonly id: string;
   readonly number: number;
@@ -28,14 +45,52 @@ export class Level {
   readonly gridWidth: number;
   readonly gridHeight: number;
   readonly graph: Graph;
+  readonly maxLives: number;
+  private livesRemaining: number;
 
-  private constructor(id: string, number: number, name: string, gridWidth: number, gridHeight: number, graph: Graph) {
+  private constructor(id: string, number: number, name: string, gridWidth: number, gridHeight: number, graph: Graph, maxLives: number) {
     this.id = id;
     this.number = number;
     this.name = name;
     this.gridWidth = gridWidth;
     this.gridHeight = gridHeight;
     this.graph = graph;
+    this.maxLives = maxLives;
+    this.livesRemaining = maxLives;
+  }
+
+  tapNode(nodeId: number): LevelTapResult {
+    const result = this.graph.tapNode(nodeId);
+
+    if (result.kind === 'blocked') {
+      this.livesRemaining = Math.max(0, this.livesRemaining - 1);
+
+      return {
+        kind: 'blocked',
+        nodeId,
+        livesRemaining: this.livesRemaining,
+        isOutOfLives: this.livesRemaining === 0,
+      };
+    }
+
+    return {
+      kind: 'removed',
+      nodeId: result.node.id,
+      affectedNeighbors: result.affectedNeighbors.map((n) => ({
+        id: n.id,
+        inDegree: n.inDegree,
+      })),
+      livesRemaining: this.livesRemaining,
+      isComplete: this.graph.isComplete(),
+    };
+  }
+
+  getLivesRemaining(): number {
+    return this.livesRemaining;
+  }
+
+  isOutOfLives(): boolean {
+    return this.livesRemaining === 0;
   }
 
   static fromDefinition(definition: LevelDefinition) {
@@ -58,6 +113,7 @@ export class Level {
       definition.grid.width,
       definition.grid.height,
       new Graph(nodes),
+      DEFAULT_MAX_LIVES,
     );
   }
 }

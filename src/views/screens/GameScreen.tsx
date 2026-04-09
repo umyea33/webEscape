@@ -60,7 +60,7 @@ export function GameScreen({ viewModel }: GameScreenProps) {
         activeNodes={viewModel.activeNodes}
         levelView={viewModel.levelView}
         onNodePress={viewModel.handleNodePress}
-        removalEvent={viewModel.removalEvent}
+        onRemovalComplete={viewModel.handleRemovalComplete}
         setZoom={viewModel.setZoom}
         showGrid={viewModel.showGrid}
         zoom={viewModel.zoom}
