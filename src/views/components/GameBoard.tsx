@@ -10,13 +10,13 @@ import {
 } from 'react-native';
 import Svg, { Circle as SvgCircle, G, Line, Polygon } from 'react-native-svg';
 
-import type { Level } from '../../models/Level';
-import type { Node, NodeSnapshot } from '../../models/Node';
-import type { RemovalAnimationSnapshot } from '../../viewModels/useAppViewModel';
+import type { EdgeView, LevelView, NodeView, RemovalAnimationSnapshot } from '../../viewModels/useAppViewModel';
 import { palette, spacing, typography } from '../theme';
 
 type GameBoardProps = {
-  level: Level;
+  levelView: LevelView;
+  activeNodes: NodeView[];
+  activeEdges: EdgeView[];
   zoom: number;
   setZoom: (newZoom: number) => void;
   showGrid: boolean;
@@ -37,7 +37,9 @@ function getDistance(x1: number, y1: number, x2: number, y2: number) {
 }
 
 export function GameBoard({
-  level,
+  levelView,
+  activeNodes,
+  activeEdges,
   zoom,
   setZoom,
   showGrid,
@@ -72,21 +74,18 @@ export function GameBoard({
 
   const gridUnit = BASE_GRID_UNIT * zoom;
   const nodeRadius = gridUnit;
-  const boardWidth = (level.gridWidth + 1) * gridUnit;
-  const boardHeight = (level.gridHeight + 1) * gridUnit;
+  const boardWidth = (levelView.gridWidth + 1) * gridUnit;
+  const boardHeight = (levelView.gridHeight + 1) * gridUnit;
   const viewportWidth = frameSize.width || windowSize.width;
   const viewportHeight = frameSize.height || windowSize.height;
   const overscrollX = viewportWidth / 2;
   const overscrollY = viewportHeight / 2;
 
-  const activeNodes = level.graph.getActiveNodes();
-  const activeEdges = level.graph.getActiveEdges();
-
   const clampOffset = useCallback(
     (x: number, y: number, z: number) => {
       const gu = BASE_GRID_UNIT * z;
-      const bw = (level.gridWidth + 1) * gu;
-      const bh = (level.gridHeight + 1) * gu;
+      const bw = (levelView.gridWidth + 1) * gu;
+      const bh = (levelView.gridHeight + 1) * gu;
       const minX = Math.min(0, viewportWidth - bw - overscrollX);
       const maxX = overscrollX;
       const minY = Math.min(0, viewportHeight - bh - overscrollY);
@@ -96,7 +95,7 @@ export function GameBoard({
         y: Math.min(maxY, Math.max(minY, y)),
       };
     },
-    [level.gridWidth, level.gridHeight, viewportWidth, viewportHeight, overscrollX, overscrollY],
+    [levelView.gridWidth, levelView.gridHeight, viewportWidth, viewportHeight, overscrollX, overscrollY],
   );
 
   // Reset offset when level or viewport changes
@@ -106,7 +105,7 @@ export function GameBoard({
     offsetRef.current = initial;
     setOffset(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level.id, viewportWidth, viewportHeight]);
+  }, [levelView.id, viewportWidth, viewportHeight]);
 
   // --- Touch handlers (pan + pinch) ---
   const onTouchStart = useCallback(
@@ -274,11 +273,11 @@ export function GameBoard({
   }, [removalAnimationValue, removalEvent]);
 
   const removalSourcePoint = removalEvent
-    ? toBoardPoint(removalEvent.source, level.gridHeight, gridUnit)
+    ? toBoardPoint(removalEvent.source, levelView.gridHeight, gridUnit)
     : null;
   const removalNeighborPoints = removalEvent?.neighbors.map((neighbor) => ({
     snapshot: neighbor,
-    point: toBoardPoint(neighbor, level.gridHeight, gridUnit),
+    point: toBoardPoint(neighbor, levelView.gridHeight, gridUnit),
   }));
 
   const boardStyle = useMemo(
@@ -315,8 +314,8 @@ export function GameBoard({
     >
       <View style={boardStyle}>
         <Svg height={boardHeight} pointerEvents="none" style={StyleSheet.absoluteFill} width={boardWidth}>
-          {showGrid ? renderGrid(level, gridUnit) : null}
-          {activeEdges.map((edge) => renderEdge(edge.from, edge.to, level.gridHeight, gridUnit, nodeRadius))}
+          {showGrid ? renderGrid(levelView, gridUnit) : null}
+          {activeEdges.map((edge) => renderEdge(edge, levelView.gridHeight, gridUnit, nodeRadius))}
 
           {removalEvent && removalSourcePoint ? (
             <G opacity={1 - removalProgress}>
@@ -326,7 +325,7 @@ export function GameBoard({
                   snapshot,
                   removalSourcePoint,
                   point,
-                  level.gridHeight,
+                  levelView.gridHeight,
                   gridUnit,
                   nodeRadius,
                   removalProgress,
@@ -337,7 +336,7 @@ export function GameBoard({
         </Svg>
 
         {activeNodes.map((node) => {
-          const point = toBoardPoint(node, level.gridHeight, gridUnit);
+          const point = toBoardPoint(node, levelView.gridHeight, gridUnit);
           return (
             <NodeToken
               blockedEventToken={blockedEventToken}
@@ -377,7 +376,7 @@ type NodeTokenProps = {
   blockedEventToken: number;
   blockedNodeId: number | null;
   isInteractionLocked: boolean;
-  node: Node;
+  node: NodeView;
   onPress: (nodeId: number) => void;
   point: { x: number; y: number };
   radius: number;
@@ -437,12 +436,12 @@ function NodeToken({
   );
 }
 
-function renderGrid(level: Level, gridUnit: number) {
+function renderGrid(levelView: LevelView, gridUnit: number) {
   const dots: ReactElement[] = [];
 
-  for (let x = 0; x < level.gridWidth; x += 1) {
-    for (let y = 0; y < level.gridHeight; y += 1) {
-      const point = toBoardPoint({ id: -1, x, y }, level.gridHeight, gridUnit);
+  for (let x = 0; x < levelView.gridWidth; x += 1) {
+    for (let y = 0; y < levelView.gridHeight; y += 1) {
+      const point = toBoardPoint({ x, y }, levelView.gridHeight, gridUnit);
 
       dots.push(
         <SvgCircle
@@ -460,13 +459,13 @@ function renderGrid(level: Level, gridUnit: number) {
   return dots;
 }
 
-function renderEdge(from: Node, to: Node, gridHeight: number, gridUnit: number, nodeRadius: number) {
-  const start = toBoardPoint(from, gridHeight, gridUnit);
-  const end = toBoardPoint(to, gridHeight, gridUnit);
+function renderEdge(edge: EdgeView, gridHeight: number, gridUnit: number, nodeRadius: number) {
+  const start = toBoardPoint({ x: edge.fromX, y: edge.fromY }, gridHeight, gridUnit);
+  const end = toBoardPoint({ x: edge.toX, y: edge.toY }, gridHeight, gridUnit);
   const vector = edgeVector(start, end, nodeRadius);
 
   return (
-    <G key={`edge-${from.id}-${to.id}`}>
+    <G key={`edge-${edge.fromId}-${edge.toId}`}>
       <Line
         stroke={palette.edge}
         strokeLinecap="round"
@@ -482,8 +481,8 @@ function renderEdge(from: Node, to: Node, gridHeight: number, gridUnit: number, 
 }
 
 function renderAnimatedEdge(
-  from: NodeSnapshot,
-  to: NodeSnapshot,
+  from: { id: number; x: number; y: number },
+  to: { id: number; x: number; y: number },
   fromPoint: { x: number; y: number },
   toPoint: { x: number; y: number },
   gridHeight: number,
@@ -548,7 +547,7 @@ function edgeVector(start: { x: number; y: number }, end: { x: number; y: number
   };
 }
 
-function toBoardPoint(node: NodeSnapshot | Node, gridHeight: number, gridUnit: number) {
+function toBoardPoint(node: { x: number; y: number }, gridHeight: number, gridUnit: number) {
   return {
     x: gridUnit + node.x * gridUnit,
     y: gridUnit + (gridHeight - 1 - node.y) * gridUnit,

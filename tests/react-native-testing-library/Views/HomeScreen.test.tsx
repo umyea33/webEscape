@@ -6,11 +6,19 @@ import { defaultPlayerProgress } from '../../../src/storage/playerProgressStore.
 describe('HomeScreen', () => {
   it('displays the current level label', () => {
     const mockViewModel = {
-      screen: 'home' as const,
       currentLevelLabel: 'Level 5',
+      currentScreen: 'home' as const,
+      gameScreen: null,
+      homeHeadline: 'Test headline',
+      openGameScreen: jest.fn(),
       playButtonLabel: 'Play',
       playerProgress: defaultPlayerProgress,
-      openGameScreen: jest.fn(),
+      playerStats: {
+        levelsCompleted: 0,
+        perfectClears: 0,
+        totalAttempts: 0,
+        totalMistakes: 0,
+      },
       updatePlayerProgress: jest.fn(),
     };
 

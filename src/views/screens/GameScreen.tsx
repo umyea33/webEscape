@@ -62,7 +62,9 @@ export function GameScreen({ viewModel }: GameScreenProps) {
         blockedEventToken={gameScreen.blockedEventToken}
         blockedNodeId={gameScreen.blockedNodeId}
         isInteractionLocked={gameScreen.isInteractionLocked}
-        level={gameScreen.level}
+        activeEdges={gameScreen.activeEdges}
+        activeNodes={gameScreen.activeNodes}
+        levelView={gameScreen.levelView}
         onNodePress={gameScreen.handleNodePress}
         removalEvent={gameScreen.removalEvent}
         setZoom={gameScreen.setZoom}

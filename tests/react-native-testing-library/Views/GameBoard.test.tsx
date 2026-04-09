@@ -7,8 +7,8 @@ import { useAppViewModel } from '../../../src/viewModels/useAppViewModel';
  * Node 1 is the only node with in-degree 0 at the start.
  *
  * These tests exercise the ViewModel's handleNodePress to verify that
- * after tapping a valid node, the model state exposed to the view
- * (activeNodes, activeEdges via level.graph) is fully consistent.
+ * after tapping a valid node, the snapshot state exposed to the view
+ * (activeNodes, activeEdges) is fully consistent.
  */
 describe('GameBoard after tapping a valid node', () => {
   beforeEach(() => {
@@ -23,19 +23,16 @@ describe('GameBoard after tapping a valid node', () => {
       result.current.openGameScreen();
     });
 
-    const gameScreen = result.current.gameScreen!;
-    const level = gameScreen.level;
-
     // All four nodes should be active initially
-    expect(level.graph.getActiveNodes().map((n) => n.id)).toEqual([1, 2, 3, 4]);
+    expect(result.current.gameScreen!.activeNodes.map((n) => n.id)).toEqual([1, 2, 3, 4]);
 
     // Tap node 1 (in-degree 0)
     act(() => {
-      gameScreen.handleNodePress(1);
+      result.current.gameScreen!.handleNodePress(1);
     });
 
     // Node 1 should no longer be in active nodes
-    const activeIds = level.graph.getActiveNodes().map((n) => n.id);
+    const activeIds = result.current.gameScreen!.activeNodes.map((n) => n.id);
     expect(activeIds).not.toContain(1);
     expect(activeIds).toEqual([2, 3, 4]);
   });
@@ -47,14 +44,11 @@ describe('GameBoard after tapping a valid node', () => {
       result.current.openGameScreen();
     });
 
-    const gameScreen = result.current.gameScreen!;
-    const level = gameScreen.level;
-
     act(() => {
-      gameScreen.handleNodePress(1);
+      result.current.gameScreen!.handleNodePress(1);
     });
 
-    const edgePairs = level.graph.getActiveEdges().map((e) => [e.from.id, e.to.id]);
+    const edgePairs = result.current.gameScreen!.activeEdges.map((e) => [e.fromId, e.toId]);
     expect(edgePairs).not.toContainEqual([1, 2]);
     expect(edgePairs).not.toContainEqual([1, 3]);
     // Edge 2→4 and 3→4 should still exist
@@ -69,20 +63,21 @@ describe('GameBoard after tapping a valid node', () => {
       result.current.openGameScreen();
     });
 
-    const gameScreen = result.current.gameScreen!;
-    const level = gameScreen.level;
-
     // Before tap, nodes 2 and 3 have in-degree 1
-    expect(level.graph.getNode(2)!.inDegree).toBe(1);
-    expect(level.graph.getNode(3)!.inDegree).toBe(1);
+    const node2Before = result.current.gameScreen!.activeNodes.find((n) => n.id === 2)!;
+    const node3Before = result.current.gameScreen!.activeNodes.find((n) => n.id === 3)!;
+    expect(node2Before.inDegree).toBe(1);
+    expect(node3Before.inDegree).toBe(1);
 
     act(() => {
-      gameScreen.handleNodePress(1);
+      result.current.gameScreen!.handleNodePress(1);
     });
 
     // After removing node 1, nodes 2 and 3 should have in-degree 0
-    expect(level.graph.getNode(2)!.inDegree).toBe(0);
-    expect(level.graph.getNode(3)!.inDegree).toBe(0);
+    const node2After = result.current.gameScreen!.activeNodes.find((n) => n.id === 2)!;
+    const node3After = result.current.gameScreen!.activeNodes.find((n) => n.id === 3)!;
+    expect(node2After.inDegree).toBe(0);
+    expect(node3After.inDegree).toBe(0);
   });
 
   it('stays consistent through sequential removals without crashing', () => {
@@ -92,35 +87,33 @@ describe('GameBoard after tapping a valid node', () => {
       result.current.openGameScreen();
     });
 
-    const gameScreen = result.current.gameScreen!;
-    const level = gameScreen.level;
-
     // Tap node 1 (in-degree 0)
     act(() => {
-      gameScreen.handleNodePress(1);
+      result.current.gameScreen!.handleNodePress(1);
     });
 
-    expect(level.graph.getActiveNodes().map((n) => n.id)).toEqual([2, 3, 4]);
+    expect(result.current.gameScreen!.activeNodes.map((n) => n.id)).toEqual([2, 3, 4]);
 
     // Tap node 2 (now in-degree 0)
     act(() => {
-      gameScreen.handleNodePress(2);
+      result.current.gameScreen!.handleNodePress(2);
     });
 
-    expect(level.graph.getActiveNodes().map((n) => n.id)).toEqual([3, 4]);
+    expect(result.current.gameScreen!.activeNodes.map((n) => n.id)).toEqual([3, 4]);
 
     // Tap node 3 (now in-degree 0)
     act(() => {
-      gameScreen.handleNodePress(3);
+      result.current.gameScreen!.handleNodePress(3);
     });
 
-    expect(level.graph.getActiveNodes().map((n) => n.id)).toEqual([4]);
+    expect(result.current.gameScreen!.activeNodes.map((n) => n.id)).toEqual([4]);
 
     // Tap node 4 (now in-degree 0) — completes the level
     act(() => {
-      gameScreen.handleNodePress(4);
+      result.current.gameScreen!.handleNodePress(4);
     });
 
-    expect(level.graph.isComplete()).toBe(true);
+    // All nodes should be removed
+    expect(result.current.gameScreen!.activeNodes).toEqual([]);
   });
 });

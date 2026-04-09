@@ -19,6 +19,28 @@ type PlayerStats = {
   totalMistakes: number;
 };
 
+export type NodeView = {
+  id: number;
+  x: number;
+  y: number;
+  inDegree: number;
+};
+
+export type EdgeView = {
+  fromId: number;
+  fromX: number;
+  fromY: number;
+  toId: number;
+  toX: number;
+  toY: number;
+};
+
+export type LevelView = {
+  id: string;
+  gridWidth: number;
+  gridHeight: number;
+};
+
 export type RemovalAnimationSnapshot = {
   token: number;
   source: NodeSnapshot;
@@ -31,7 +53,9 @@ type GameScreenState = {
   currentLevelLabel: string;
   isInteractionLocked: boolean;
   isOutOfLives: boolean;
-  level: Level;
+  levelView: LevelView;
+  activeNodes: NodeView[];
+  activeEdges: EdgeView[];
   levelSummary: string;
   livesRemaining: number;
   removalEvent: RemovalAnimationSnapshot | null;
@@ -221,7 +245,25 @@ export function useAppViewModel(): AppViewModel {
         handleNodePress,
         isInteractionLocked,
         isOutOfLives: livesRemaining === 0,
-        level: activeLevel,
+        levelView: {
+          id: activeLevel.id,
+          gridWidth: activeLevel.gridWidth,
+          gridHeight: activeLevel.gridHeight,
+        },
+        activeNodes: activeLevel.graph.getActiveNodes().map((n) => ({
+          id: n.id,
+          x: n.x,
+          y: n.y,
+          inDegree: n.inDegree,
+        })),
+        activeEdges: activeLevel.graph.getActiveEdges().map((e) => ({
+          fromId: e.from.id,
+          fromX: e.from.x,
+          fromY: e.from.y,
+          toId: e.to.id,
+          toX: e.to.x,
+          toY: e.to.y,
+        })),
         levelSummary: `Grid ${activeLevel.gridWidth} x ${activeLevel.gridHeight} with ${activeLevel.graph.getNodes().length} nodes.`,
         livesRemaining,
         removalEvent,
