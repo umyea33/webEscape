@@ -10,7 +10,6 @@ export class Node {
   readonly y: number;
   readonly neighbors: number[];
   inDegree = 0;
-  removed = false;
 
   constructor(id: number, x: number, y: number, neighbors: number[]) {
     this.id = id;

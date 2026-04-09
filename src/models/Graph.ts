@@ -33,14 +33,14 @@ export class Graph {
   }
 
   getActiveNodes(): Node[] {
-    return this.getNodes().filter((node) => !node.removed);
+    return this.getNodes();
   }
 
   getActiveEdges(): GraphEdge[] {
-    return this.getActiveNodes().flatMap((node) =>
+    return this.getNodes().flatMap((node) =>
       node.neighbors
         .map((neighborId) => this.nodesById.get(neighborId))
-        .filter((neighbor): neighbor is Node => neighbor instanceof Node && !neighbor.removed)
+        .filter((neighbor): neighbor is Node => neighbor instanceof Node)
         .map((neighbor) => ({ from: node, to: neighbor })),
     );
   }
@@ -48,22 +48,22 @@ export class Graph {
   tapNode(nodeId: number): GraphTapResult {
     const node = this.nodesById.get(nodeId);
 
-    if (!node || node.removed || node.inDegree > 0) {
+    if (!node || node.inDegree > 0) {
       return {
         kind: 'blocked',
         node: node ?? new Node(nodeId, 0, 0, []),
       };
     }
 
-    node.removed = true;
-
     const affectedNeighbors = node.neighbors
       .map((neighborId) => this.nodesById.get(neighborId))
-      .filter((neighbor): neighbor is Node => neighbor instanceof Node && !neighbor.removed);
+      .filter((neighbor): neighbor is Node => neighbor instanceof Node);
 
     for (const neighbor of affectedNeighbors) {
       neighbor.decreaseInDegree();
     }
+
+    this.nodesById.delete(nodeId);
 
     return {
       kind: 'removed',
@@ -73,13 +73,12 @@ export class Graph {
   }
 
   isComplete(): boolean {
-    return this.getActiveNodes().length === 0;
+    return this.nodesById.size === 0;
   }
 
   private recalculateInDegrees() {
     for (const node of this.nodesById.values()) {
       node.inDegree = 0;
-      node.removed = false;
     }
 
     for (const node of this.nodesById.values()) {

@@ -39,10 +39,12 @@ describe('Graph', () => {
     it('immediately decreases in-degree of neighbors', () => {
       const graph = buildChainGraph();
 
-      graph.tapNode(1);
-
-      const nodeB = graph.getNode(2)!;
-      expect(nodeB.inDegree).toBe(0);
+      const result = graph.tapNode(1);
+      expect(result.kind).toBe('removed');
+      if (result.kind === 'removed') {
+        expect(result.affectedNeighbors.length).toBe(1);
+        expect(result.affectedNeighbors[0].inDegree).toBe(0);
+      }
     });
 
     it('active nodes and edges stay consistent through sequential removals', () => {
@@ -52,8 +54,8 @@ describe('Graph', () => {
       graph.tapNode(1);
 
       // After removing A, B should now have in-degree 0
-      const nodeBAfterA = graph.getNode(2)!;
-      expect(nodeBAfterA.inDegree).toBe(0);
+      const nodeB = graph.getNode(2)!;
+      expect(nodeB.inDegree).toBe(0);
 
       // Active nodes should be [B, C]
       let activeIds = graph.getActiveNodes().map((n) => n.id);
@@ -64,11 +66,11 @@ describe('Graph', () => {
       expect(edgePairs).toEqual([[2, 3]]);
 
       // Remove B (now in-degree 0)
-      graph.tapNode(2);
+      const resultB = graph.tapNode(2);
+      expect(resultB.kind).toBe('removed');
 
-      // C should now have in-degree 0
-      const nodeC = graph.getNode(3)!;
-      expect(nodeC.inDegree).toBe(0);
+      // B should no longer be in the graph
+      expect(graph.getNode(2)).toBeUndefined();
 
       // Active nodes should be [C]
       activeIds = graph.getActiveNodes().map((n) => n.id);
