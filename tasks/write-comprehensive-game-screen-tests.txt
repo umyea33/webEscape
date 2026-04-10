@@ -1,0 +1,84 @@
+Task: Write Comprehensive Game Screen Tests
+
+Description:
+Add thorough test coverage across model, viewmodel, and view layers to ensure the game screen works correctly with any level. In-degree is a model-only concept and must NOT appear in viewmodel or view tests.
+
+Test Files to Create/Update:
+- tests/jest/Models/Graph.test.ts (update — add new cases)
+- tests/jest/Models/Level.test.ts (create — lives section only; validation is in a separate task)
+- tests/react-native-testing-library/Views/GameBoard.test.tsx (update — add new cases)
+
+---
+
+1. MODEL TESTS — Graph (tests/jest/Models/Graph.test.ts, add to existing)
+
+1a. In-degree calculation for every shipped level (1–7): load each level JSON,
+    build the graph, verify each node's inDegree matches the count of edges
+    pointing into it.
+1b. Full solve for every shipped level (1–7): repeatedly tap nodes with
+    inDegree === 0 until isComplete() returns true. This proves every level
+    is solvable.
+1c. Cycle detection: build a graph where every node has inDegree > 0
+    (e.g. A→B, B→A). Verify every tapNode call returns 'blocked'.
+1d. Tapping a non-existent node ID → should return 'blocked', not crash.
+1e. Diamond/fan-in graph: multiple sources funnel into one sink. Verify
+    removal order doesn't matter as long as you only tap inDegree-0 nodes.
+1f. Single node with no edges → tap it → isComplete() is true.
+1g. All nodes at inDegree 0 (no edges at all) → any tap order works.
+1h. Long chain (A→B→C→D) → must tap in exact order A, B, C, D.
+1i. Wide fan-out: 1 source → many sinks → tap source first, then sinks
+    in any order.
+1j. Wide fan-in: many sources → 1 sink → tap all sources (any order),
+    then the sink.
+1k. Two disconnected subgraphs → can solve one before the other.
+
+2. MODEL TESTS — Level Lives (tests/jest/Models/Level.test.ts)
+
+2a. Tap a blocked node twice → livesRemaining goes 2→1→0,
+    isOutOfLives() returns true.
+2b. Tap a valid node → lives stay unchanged.
+2c. Mix valid and invalid taps → verify lives decrement only on invalid taps.
+
+3. VIEWMODEL TESTS (tests/react-native-testing-library/Views/GameBoard.test.tsx, add to existing)
+
+Note: NodeView no longer has inDegree. Do NOT assert on inDegree in any
+viewmodel or view test.
+
+3a. Blocked node resets on valid tap: tap a blocked node (verify blockedNodeId
+    is set), then tap a valid node → verify blockedNodeId resets to null.
+3b. Interaction locks on out-of-lives: tap blocked nodes twice, verify
+    isInteractionLocked === true, then handleNodePress on a valid node is
+    ignored (snapshot unchanged).
+3c. Completion fires persistProgress and returnHome: full-solve the level,
+    advance timers by 340ms, verify both callbacks were invoked with correct
+    arguments (currentLevelNumber + 1, levelsCompleted, etc.).
+3d. Perfect clear tracking: complete a level with 0 mistakes →
+    persistProgress called with perfectClears + 1. Complete with 1 mistake →
+    perfectClears + 0.
+3e. retryLevel calls beginLevel with the current level number.
+3f. Zoom clamping: setZoom(0.1) → zoom stays at 0.25;
+    setZoom(2.0) → zoom stays at 1.55.
+3g. Grid toggle: toggleGrid() → showGrid flips from false to true.
+3h. Parameterized full-solve for every level (1–7): load each level, determine
+    valid tap order by asking the model for inDegree-0 nodes, run the full
+    tap + removal cycle through the viewmodel, assert activeNodes ends empty
+    and completion fires. This is the single most important test.
+
+---
+
+Relevant Files:
+- src/models/Node.ts
+- src/models/Graph.ts
+- src/models/Level.ts
+- src/viewModels/useGameViewModel.ts
+- src/views/components/GameBoard.tsx
+- src/views/screens/GameScreen.tsx
+- src/data/levels/index.ts
+- src/data/levels/level1.json through level7.json
+- tests/jest/Models/Graph.test.ts
+- tests/jest/Models/Node.test.ts
+- tests/react-native-testing-library/Views/GameBoard.test.tsx
+
+Verify With:
+- npx jest tests/jest
+- npx jest tests/react-native-testing-library

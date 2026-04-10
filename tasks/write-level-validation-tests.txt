@@ -1,0 +1,30 @@
+Task: Write Level Validation Tests
+
+Description:
+Add test coverage for Level.fromDefinition validation logic to ensure invalid level definitions are rejected with clear errors and valid ones are accepted.
+
+Test File to Create:
+- tests/jest/Models/Level.test.ts (create — validation section)
+
+---
+
+1. MODEL TESTS — Level Validation (tests/jest/Models/Level.test.ts)
+
+1a. Duplicate node IDs → Level.fromDefinition should throw.
+1b. Node position x outside grid bounds → should throw.
+1c. Node position y outside grid bounds → should throw.
+1d. Neighbor references a non-existent node ID → should throw.
+1e. Grid with zero width → should throw.
+1f. Grid with negative height → should throw.
+1g. Valid level with 1 node and no edges → should succeed.
+1h. Valid level with many nodes → should succeed.
+
+---
+
+Relevant Files:
+- src/models/Level.ts
+- src/models/Graph.ts
+- src/models/Node.ts
+
+Verify With:
+- npx jest tests/jest/Models/Level.test.ts
