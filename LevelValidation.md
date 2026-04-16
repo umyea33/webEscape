@@ -15,7 +15,7 @@ A test that ensures that no node points to a neighbor that doesn't exist.
 
 Good Level:
 A test that ensures no nodes have positions on the outside layer of the grid.
-A test that ensures all nodes are at least 2 positions horizontally or vertically away from every other node. 
+A test that ensures all nodes are at least 3 positions horizontally or vertically away from every other node. 
 
 
 Graph Validation:

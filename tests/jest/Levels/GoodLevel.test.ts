@@ -27,15 +27,15 @@ describe.each(levelFiles)('%s', (fileName) => {
     }
   });
 
-  it('has all nodes at least 2 positions away from every other node', () => {
+  it('has all nodes at least 3 positions away from every other node', () => {
     const nodes = json.nodes;
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const dx = Math.abs(nodes[i].position.x - nodes[j].position.x);
         const dy = Math.abs(nodes[i].position.y - nodes[j].position.y);
         // "2 positions horizontally or vertically" — at least one axis must
-        // have a distance of >= 2
-        expect(dx >= 2 || dy >= 2).toBe(true);
+        // have a distance of >= 3
+        expect(dx >= 3 || dy >= 3).toBe(true);
       }
     }
   });
