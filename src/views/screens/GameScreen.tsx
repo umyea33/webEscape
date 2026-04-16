@@ -43,6 +43,11 @@ export function GameScreen({ viewModel }: GameScreenProps) {
         </View>
 
         <View style={styles.rightGroup}>
+          {viewModel.timeDisplay !== null && (
+            <Text style={[styles.timerText, viewModel.isOutOfTime && styles.timerExpired]}>
+              {viewModel.timeDisplay}
+            </Text>
+          )}
           <Pressable
             onPress={viewModel.toggleGrid}
             style={({ pressed }) => [styles.circleButton, pressed && styles.circleButtonPressed]}
@@ -95,7 +100,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   rightGroup: {
+    alignItems: 'center',
     flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  timerText: {
+    color: palette.text,
+    fontSize: 16,
+    fontVariant: ['tabular-nums'],
+  },
+  timerExpired: {
+    color: '#e53935',
   },
   circleButton: {
     alignItems: 'center',

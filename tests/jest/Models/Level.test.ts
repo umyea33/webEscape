@@ -10,6 +10,7 @@ function buildChainLevel(): Level {
     number: 1,
     name: 'Test Chain',
     grid: { width: 4, height: 4 },
+    timeLimit: 'none',
     nodes: [
       { id: 1, position: { x: 0, y: 0 }, neighbors: [2] },
       { id: 2, position: { x: 1, y: 0 }, neighbors: [3] },

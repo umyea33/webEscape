@@ -6,6 +6,7 @@
     "width": 4,
     "height": 4
   },
+  "timeLimit": "none",
   "nodes": [
     {
       "id": 1,

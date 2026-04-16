@@ -18,6 +18,7 @@ export type LevelDefinition = {
     width: number;
     height: number;
   };
+  timeLimit: number | string;
   nodes: LevelNodeDefinition[];
 };
 
@@ -45,16 +46,18 @@ export class Level {
   readonly gridWidth: number;
   readonly gridHeight: number;
   readonly graph: Graph;
+  readonly timeLimit: number | null;
   readonly maxLives: number;
   private livesRemaining: number;
 
-  private constructor(id: string, number: number, name: string, gridWidth: number, gridHeight: number, graph: Graph, maxLives: number) {
+  private constructor(id: string, number: number, name: string, gridWidth: number, gridHeight: number, graph: Graph, timeLimit: number | null, maxLives: number) {
     this.id = id;
     this.number = number;
     this.name = name;
     this.gridWidth = gridWidth;
     this.gridHeight = gridHeight;
     this.graph = graph;
+    this.timeLimit = timeLimit;
     this.maxLives = maxLives;
     this.livesRemaining = maxLives;
   }
@@ -106,6 +109,8 @@ export class Level {
         ),
     );
 
+    const timeLimit = typeof definition.timeLimit === 'number' ? definition.timeLimit : null;
+
     return new Level(
       definition.id,
       definition.number,
@@ -113,6 +118,7 @@ export class Level {
       definition.grid.width,
       definition.grid.height,
       new Graph(nodes),
+      timeLimit,
       DEFAULT_MAX_LIVES,
     );
   }

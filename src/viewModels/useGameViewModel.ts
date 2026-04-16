@@ -44,6 +44,7 @@ export type GameViewModel = {
   handleRemovalComplete: (nodeId: number) => void;
   isInteractionLocked: boolean;
   isOutOfLives: boolean;
+  isOutOfTime: boolean;
   levelSummary: string;
   levelView: LevelView;
   livesRemaining: number;
@@ -51,12 +52,19 @@ export type GameViewModel = {
   returnHome: () => void;
   setZoom: (newZoom: number) => void;
   showGrid: boolean;
+  timeDisplay: string | null;
   toggleGrid: () => void;
   zoom: number;
 };
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 1.55;
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 function createGraphSnapshot(level: Level): GraphSnapshot {
   return {
@@ -85,6 +93,7 @@ export function useGameViewModel(
   beginLevel: (levelNumber: number) => void,
 ): GameViewModel {
   const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventTokenRef = useRef(0);
   const [graphSnapshot, setGraphSnapshot] = useState<GraphSnapshot>(() => createGraphSnapshot(activeLevel));
   const [livesRemaining, setLivesRemaining] = useState(activeLevel.getLivesRemaining());
@@ -93,6 +102,7 @@ export function useGameViewModel(
   const [blockedNodeId, setBlockedNodeId] = useState<number | null>(null);
   const [blockedEventToken, setBlockedEventToken] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(activeLevel.timeLimit);
 
   useEffect(() => {
     setGraphSnapshot(createGraphSnapshot(activeLevel));
@@ -102,15 +112,50 @@ export function useGameViewModel(
     setIsCompleting(false);
     setShowGrid(false);
     setZoom(0.5);
+    setTimeRemaining(activeLevel.timeLimit);
 
     if (completionTimeoutRef.current) {
       clearTimeout(completionTimeoutRef.current);
       completionTimeoutRef.current = null;
     }
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   }, [activeLevel]);
 
+  useEffect(() => {
+    if (timeRemaining === null || timeRemaining <= 0) {
+      return;
+    }
+
+    timerRef.current = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev === null) return null;
+        const next = prev - 1;
+        if (next <= 0) {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          return 0;
+        }
+        return next;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [activeLevel]);
+
+  const isOutOfTime = timeRemaining !== null && timeRemaining <= 0;
   const isOutOfLives = activeLevel.isOutOfLives();
-  const isInteractionLocked = isCompleting || isOutOfLives;
+  const isInteractionLocked = isCompleting || isOutOfLives || isOutOfTime;
 
   const retryLevel = useCallback(() => {
     beginLevel(activeLevel.number);
@@ -172,6 +217,11 @@ export function useGameViewModel(
 
       setIsCompleting(true);
 
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
       completionTimeoutRef.current = setTimeout(() => {
         persistProgress((previousProgress) => ({
           currentLevelNumber: previousProgress.currentLevelNumber + 1,
@@ -198,6 +248,7 @@ export function useGameViewModel(
     handleRemovalComplete,
     isInteractionLocked,
     isOutOfLives,
+    isOutOfTime,
     levelSummary: `Grid ${activeLevel.gridWidth} x ${activeLevel.gridHeight} with ${graphSnapshot.nodes.length} nodes.`,
     levelView: {
       id: activeLevel.id,
@@ -211,6 +262,7 @@ export function useGameViewModel(
       setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, newZoom)));
     },
     showGrid,
+    timeDisplay: timeRemaining !== null ? formatTime(timeRemaining) : null,
     toggleGrid: () => {
       setShowGrid((previousValue) => !previousValue);
     },
