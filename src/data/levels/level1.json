@@ -3,8 +3,8 @@
   "number": 1,
   "name": "Level 1",
   "grid": {
-    "width": 8,
-    "height": 8
+    "width": 10,
+    "height": 10
   },
   "timeLimit": "none",
   "nodes": [
@@ -15,17 +15,17 @@
     },
     {
       "id": 2,
-      "position": { "x": 3, "y": 3 },
+      "position": { "x": 4, "y": 4 },
       "neighbors": [4]
     },
     {
       "id": 3,
-      "position": { "x": 3, "y": 5 },
+      "position": { "x": 4, "y": 7 },
       "neighbors": [4]
     },
     {
       "id": 4,
-      "position": { "x": 5, "y": 4 },
+      "position": { "x": 7, "y": 4 },
       "neighbors": []
     }
   ]
