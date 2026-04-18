@@ -6,7 +6,6 @@ import type { GameViewModel } from '../../viewModels/useGameViewModel';
 import { GameBoard } from '../components/GameBoard';
 import { palette, spacing } from '../theme';
 
-
 type GameScreenProps = {
   viewModel: GameViewModel;
 };
@@ -16,8 +15,13 @@ export function GameScreen({ viewModel }: GameScreenProps) {
   const [topBarSize, setTopBarSize] = useState({ height: 0, width: 0 });
   const [isTopBarReady, setIsTopBarReady] = useState(false);
   const hearts = Array.from({ length: viewModel.maxLives }, (_, i) =>
-    i < viewModel.livesRemaining ? '❤️' : '🩶',
+    i < viewModel.livesRemaining ? '\u2764\ufe0f' : '\ud83e\ude76',
   );
+  const gameOverTitle = viewModel.isOutOfTime
+    ? 'Out of Time'
+    : viewModel.isOutOfLives
+      ? 'Out of Lives'
+      : null;
 
   useEffect(() => {
     if (topBarSize.width <= 0 || topBarSize.height <= 0) {
@@ -73,13 +77,13 @@ export function GameScreen({ viewModel }: GameScreenProps) {
             onPress={viewModel.returnHome}
             style={({ pressed }) => [styles.circleButton, pressed && styles.circleButtonPressed]}
           >
-            <Text style={styles.circleButtonText}>⌂</Text>
+            <Text style={styles.circleButtonText}>{'\u2302'}</Text>
           </Pressable>
           <Pressable
             onPress={viewModel.retryLevel}
             style={({ pressed }) => [styles.circleButton, pressed && styles.circleButtonPressed]}
           >
-            <Text style={styles.circleButtonText}>↺</Text>
+            <Text style={styles.circleButtonText}>{'\u21ba'}</Text>
           </Pressable>
         </View>
 
@@ -101,7 +105,7 @@ export function GameScreen({ viewModel }: GameScreenProps) {
             onPress={viewModel.toggleGrid}
             style={({ pressed }) => [styles.circleButton, pressed && styles.circleButtonPressed]}
           >
-            <Text style={styles.circleButtonText}>⊞</Text>
+            <Text style={styles.circleButtonText}>{'\u229e'}</Text>
           </Pressable>
         </View>
       </View>
@@ -119,6 +123,21 @@ export function GameScreen({ viewModel }: GameScreenProps) {
         showGrid={viewModel.showGrid}
         zoom={viewModel.zoom}
       />
+
+      {gameOverTitle !== null && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{gameOverTitle}</Text>
+            <Text style={styles.modalMessage}>Restart the level and try again.</Text>
+            <Pressable
+              onPress={viewModel.retryLevel}
+              style={({ pressed }) => [styles.modalButton, pressed && styles.circleButtonPressed]}
+            >
+              <Text style={styles.modalButtonText}>Restart</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -185,5 +204,50 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 18,
     lineHeight: 18,
+  },
+  modalOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.lg,
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCard: {
+    alignItems: 'center',
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    maxWidth: 320,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    width: '100%',
+  },
+  modalTitle: {
+    color: palette.text,
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    color: palette.mutedText,
+    fontSize: 16,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
+  },
+  modalButton: {
+    alignItems: 'center',
+    backgroundColor: palette.primary,
+    borderRadius: 999,
+    minWidth: 140,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
