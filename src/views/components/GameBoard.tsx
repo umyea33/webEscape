@@ -99,10 +99,25 @@ export function GameBoard({
     [levelView.gridWidth, levelView.gridHeight, viewportWidth, viewportHeight, overscrollX, overscrollY],
   );
 
+  const getCenteredOffset = useCallback(
+    (z: number) => {
+      const gu = BASE_GRID_UNIT * z;
+      const bw = (levelView.gridWidth + 1) * gu;
+      const bh = (levelView.gridHeight + 1) * gu;
+
+      return clampOffset(
+        (viewportWidth - bw) / 2,
+        (viewportHeight - bh) / 2,
+        z,
+      );
+    },
+    [clampOffset, levelView.gridHeight, levelView.gridWidth, viewportHeight, viewportWidth],
+  );
+
   // Reset offset when level or viewport changes
   useEffect(() => {
     if (viewportWidth === 0 || viewportHeight === 0) return;
-    const initial = clampOffset(0, 0, zoom);
+    const initial = getCenteredOffset(zoom);
     offsetRef.current = initial;
     setOffset(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
