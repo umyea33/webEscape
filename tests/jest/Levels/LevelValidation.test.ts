@@ -96,6 +96,24 @@ describe.each(levelFiles)('%s', (fileName) => {
     }
   });
 
+  it('has the grid sized tightly around the graph (a node on each inner edge)', () => {
+    expect(json).toBeDefined();
+    const innerLeft = 1;
+    const innerRight = json.grid.width - 2;
+    const innerTop = 1;
+    const innerBottom = json.grid.height - 2;
+
+    const hasLeft = json.nodes.some((n: any) => n.position.x === innerLeft);
+    const hasRight = json.nodes.some((n: any) => n.position.x === innerRight);
+    const hasTop = json.nodes.some((n: any) => n.position.y === innerTop);
+    const hasBottom = json.nodes.some((n: any) => n.position.y === innerBottom);
+
+    expect(hasLeft).toBe(true);
+    expect(hasRight).toBe(true);
+    expect(hasTop).toBe(true);
+    expect(hasBottom).toBe(true);
+  });
+
   it('has all neighbor references pointing to existing node IDs', () => {
     expect(json).toBeDefined();
     const ids = new Set(json.nodes.map((n: any) => n.id));
