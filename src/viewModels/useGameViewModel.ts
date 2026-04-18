@@ -94,6 +94,8 @@ export function useGameViewModel(
   beginLevel: (levelNumber: number) => void,
 ): GameViewModel {
   const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completedRemovalIdsRef = useRef<Set<number>>(new Set());
+  const hasScheduledCompletionRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventTokenRef = useRef(0);
   const [graphSnapshot, setGraphSnapshot] = useState<GraphSnapshot>(() => createGraphSnapshot(activeLevel));
@@ -106,6 +108,8 @@ export function useGameViewModel(
   const [timeRemaining, setTimeRemaining] = useState<number | null>(activeLevel.timeLimit);
 
   useEffect(() => {
+    completedRemovalIdsRef.current.clear();
+    hasScheduledCompletionRef.current = false;
     setGraphSnapshot(createGraphSnapshot(activeLevel));
     setLivesRemaining(activeLevel.getLivesRemaining());
     setBlockedNodeId(null);
@@ -204,18 +208,25 @@ export function useGameViewModel(
 
   const handleRemovalComplete = useCallback(
     (nodeId: number) => {
+      if (completedRemovalIdsRef.current.has(nodeId)) {
+        return;
+      }
+
+      completedRemovalIdsRef.current.add(nodeId);
+
       setGraphSnapshot((previous) => ({
         nodes: previous.nodes.filter((node) => node.id !== nodeId),
         edges: previous.edges.filter((edge) => edge.fromId !== nodeId && edge.toId !== nodeId),
       }));
 
-      if (!activeLevel.graph.isComplete()) {
+      if (!activeLevel.graph.isComplete() || hasScheduledCompletionRef.current) {
         return;
       }
 
       const completedLevelNumber = activeLevel.number;
       const clearedPerfectly = activeLevel.getLivesRemaining() === activeLevel.maxLives;
 
+      hasScheduledCompletionRef.current = true;
       setIsCompleting(true);
 
       if (timerRef.current) {

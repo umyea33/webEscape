@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 
 import { getPlayableLevelDefinition, levelDefinitions } from '../../../src/data/levels';
 import { Level } from '../../../src/models/Level';
+import { defaultPlayerProgress, type PlayerProgress } from '../../../src/storage/playerProgressStore';
 import { useGameViewModel } from '../../../src/viewModels/useGameViewModel';
 
 /**
@@ -30,6 +31,37 @@ function renderGameViewModel(level: Level) {
     persistProgress,
     returnHome,
   };
+}
+
+function solveLevel(level: Level, result: ReturnType<typeof renderGameViewModel>['result']) {
+  let lastRemovedNodeId: number | null = null;
+
+  while (result.current.activeNodes.length > 0) {
+    const removable = level.graph.getActiveNodes().find((node) => node.inDegree === 0);
+
+    expect(removable).toBeDefined();
+
+    act(() => {
+      result.current.handleNodePress(removable!.id);
+    });
+
+    lastRemovedNodeId = removable!.id;
+
+    act(() => {
+      result.current.handleRemovalComplete(removable!.id);
+    });
+  }
+
+  expect(lastRemovedNodeId).not.toBeNull();
+
+  return lastRemovedNodeId!;
+}
+
+function applyPersistedUpdates(
+  persistProgress: jest.Mock,
+  startingProgress: PlayerProgress,
+) {
+  return persistProgress.mock.calls.reduce((progress, [updater]) => updater(progress), startingProgress);
 }
 
 describe('GameBoard after tapping a valid node', () => {
@@ -411,5 +443,38 @@ describe('parameterized full-solve for every shipped level', () => {
     expect(returnHome).toHaveBeenCalled();
 
     jest.useRealTimers();
+  });
+});
+
+describe('campaign progression', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('only increments currentLevelNumber by one when levels 1-8 complete, even if the final removal completes twice', () => {
+    let progress: PlayerProgress = { ...defaultPlayerProgress };
+
+    for (const def of levelDefinitions.slice(0, 8)) {
+      const level = Level.fromDefinition(def);
+      const { result, persistProgress } = renderGameViewModel(level);
+
+      const lastRemovedNodeId = solveLevel(level, result);
+
+      act(() => {
+        result.current.handleRemovalComplete(lastRemovedNodeId);
+      });
+
+      act(() => {
+        jest.advanceTimersByTime(340);
+      });
+
+      progress = applyPersistedUpdates(persistProgress, progress);
+
+      expect(progress.currentLevelNumber).toBe(def.number + 1);
+    }
   });
 });
