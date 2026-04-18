@@ -133,6 +133,14 @@ export function useGameViewModel(
   }, [activeLevel]);
 
   useEffect(() => {
+    if (activeLevel.isOutOfLives()) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
     if (!hasStartedTimer || timeRemaining === null || timeRemaining <= 0) {
       return;
     }
@@ -158,7 +166,7 @@ export function useGameViewModel(
         timerRef.current = null;
       }
     };
-  }, [activeLevel, hasStartedTimer, timeRemaining]);
+  }, [activeLevel, hasStartedTimer, timeRemaining, livesRemaining]);
 
   const isOutOfTime = timeRemaining !== null && timeRemaining <= 0;
   const isOutOfLives = activeLevel.isOutOfLives();

@@ -451,6 +451,36 @@ describe('level timer', () => {
 
     expect(result.current.timeDisplay).toBe('0:14');
   });
+
+  it('stops counting down once the player runs out of lives', () => {
+    const level = buildTimedLevel();
+    const { result } = renderGameViewModel(level);
+
+    act(() => {
+      result.current.handleNodePress(1);
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    expect(result.current.timeDisplay).toBe('0:13');
+
+    act(() => {
+      result.current.handleNodePress(5);
+      result.current.handleNodePress(6);
+      result.current.handleNodePress(7);
+    });
+
+    expect(result.current.isOutOfLives).toBe(true);
+
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    expect(result.current.timeDisplay).toBe('0:13');
+    expect(result.current.isOutOfTime).toBe(false);
+  });
 });
 
 describe('parameterized full-solve for every shipped level', () => {
