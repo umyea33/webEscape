@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,13 +12,62 @@ type GameScreenProps = {
 };
 
 export function GameScreen({ viewModel }: GameScreenProps) {
+  const topBarReadyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [topBarSize, setTopBarSize] = useState({ height: 0, width: 0 });
+  const [isTopBarReady, setIsTopBarReady] = useState(false);
   const hearts = Array.from({ length: viewModel.maxLives }, (_, i) =>
     i < viewModel.livesRemaining ? '❤️' : '🩶',
   );
 
+  useEffect(() => {
+    if (topBarSize.width <= 0 || topBarSize.height <= 0) {
+      setIsTopBarReady(false);
+      return;
+    }
+
+    setIsTopBarReady(false);
+
+    if (topBarReadyTimeoutRef.current) {
+      clearTimeout(topBarReadyTimeoutRef.current);
+    }
+
+    topBarReadyTimeoutRef.current = setTimeout(() => {
+      topBarReadyTimeoutRef.current = null;
+      setIsTopBarReady(true);
+    }, 32);
+
+    return () => {
+      if (topBarReadyTimeoutRef.current) {
+        clearTimeout(topBarReadyTimeoutRef.current);
+        topBarReadyTimeoutRef.current = null;
+      }
+    };
+  }, [topBarSize.height, topBarSize.width]);
+
+  useEffect(() => {
+    return () => {
+      if (topBarReadyTimeoutRef.current) {
+        clearTimeout(topBarReadyTimeoutRef.current);
+        topBarReadyTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.safeArea}>
-      <View style={styles.topBar}>
+      <View
+        onLayout={(event) => {
+          const { height, width } = event.nativeEvent.layout;
+          setTopBarSize((previousSize) => {
+            if (previousSize.height === height && previousSize.width === width) {
+              return previousSize;
+            }
+
+            return { height, width };
+          });
+        }}
+        style={[styles.topBar, !isTopBarReady && styles.topBarHiddenUntilMeasured]}
+      >
         <View style={styles.leftGroup}>
           <Pressable
             onPress={viewModel.returnHome}
@@ -83,6 +133,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 52,
     paddingHorizontal: spacing.md,
+  },
+  topBarHiddenUntilMeasured: {
+    opacity: 0,
   },
   leftGroup: {
     flexDirection: 'row',
