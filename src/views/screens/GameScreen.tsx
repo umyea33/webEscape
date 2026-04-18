@@ -83,7 +83,7 @@ export function GameScreen({ viewModel }: GameScreenProps) {
           </Pressable>
         </View>
 
-        <View style={styles.livesContainer}>
+        <View pointerEvents="none" style={styles.livesContainer}>
           {hearts.map((heart, i) => (
             <Text key={i} style={styles.heartText}>
               {heart}
@@ -132,7 +132,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     height: 52,
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
+    position: 'relative',
   },
   topBarHiddenUntilMeasured: {
     opacity: 0,
@@ -143,10 +145,12 @@ const styles = StyleSheet.create({
   },
   livesContainer: {
     alignItems: 'center',
-    flex: 1,
     flexDirection: 'row',
+    left: 0,
     justifyContent: 'center',
     gap: 4,
+    position: 'absolute',
+    right: 0,
   },
   heartText: {
     fontSize: 20,
