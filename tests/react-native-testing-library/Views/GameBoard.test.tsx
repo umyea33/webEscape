@@ -529,10 +529,10 @@ describe('campaign progression', () => {
     jest.useRealTimers();
   });
 
-  it('only increments currentLevelNumber by one when levels 1-8 complete, even if the final removal completes twice', () => {
+  it('only increments currentLevelNumber by one for every shipped level, even if the final removal completes twice', () => {
     let progress: PlayerProgress = { ...defaultPlayerProgress };
 
-    for (const def of levelDefinitions.slice(0, 8)) {
+    for (const def of levelDefinitions) {
       const level = Level.fromDefinition(def);
       const { result, persistProgress } = renderGameViewModel(level);
 
