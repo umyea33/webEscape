@@ -1,0 +1,137 @@
+{
+  "id": "level10",
+  "number": 10,
+  "name": "House",
+  "grid": {
+    "width": 17,
+    "height": 19
+  },
+  "timeLimit": 20,
+  "nodes": [
+    {
+      "id": 1,
+      "position": {
+        "x": 9,
+        "y": 17
+      },
+      "neighbors": [
+        4,
+        5
+      ]
+    },
+    {
+      "id": 2,
+      "position": {
+        "x": 1,
+        "y": 12
+      },
+      "neighbors": [
+        6
+      ]
+    },
+    {
+      "id": 3,
+      "position": {
+        "x": 15,
+        "y": 12
+      },
+      "neighbors": [
+        7
+      ]
+    },
+    {
+      "id": 4,
+      "position": {
+        "x": 6,
+        "y": 14
+      },
+      "neighbors": [
+        2
+      ]
+    },
+    {
+      "id": 5,
+      "position": {
+        "x": 12,
+        "y": 14
+      },
+      "neighbors": [
+        3
+      ]
+    },
+    {
+      "id": 6,
+      "position": {
+        "x": 1,
+        "y": 7
+      },
+      "neighbors": [
+        8,
+        10
+      ]
+    },
+    {
+      "id": 7,
+      "position": {
+        "x": 15,
+        "y": 7
+      },
+      "neighbors": [
+        9,
+        11
+      ]
+    },
+    {
+      "id": 8,
+      "position": {
+        "x": 1,
+        "y": 1
+      },
+      "neighbors": []
+    },
+    {
+      "id": 9,
+      "position": {
+        "x": 15,
+        "y": 1
+      },
+      "neighbors": []
+    },
+    {
+      "id": 10,
+      "position": {
+        "x": 7,
+        "y": 7
+      },
+      "neighbors": [
+        12
+      ]
+    },
+    {
+      "id": 11,
+      "position": {
+        "x": 11,
+        "y": 7
+      },
+      "neighbors": [
+        13
+      ]
+    },
+    {
+      "id": 12,
+      "position": {
+        "x": 7,
+        "y": 1
+      },
+      "neighbors": []
+    },
+    {
+      "id": 13,
+      "position": {
+        "x": 11,
+        "y": 1
+      },
+      "neighbors": []
+    }
+  ]
+}

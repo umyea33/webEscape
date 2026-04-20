@@ -9,6 +9,8 @@ import levelSix from './level6.json';
 import levelSeven from './level7.json';
 import levelEight from './level8.json';
 import levelNine from './level9.json';
+import levelTen from './level10.json';
+import levelEleven from './level11.json';
 
 export const levelDefinitions: LevelDefinition[] = [
   levelOne,
@@ -20,6 +22,8 @@ export const levelDefinitions: LevelDefinition[] = [
   levelSeven,
   levelEight,
   levelNine,
+  levelTen,
+  levelEleven,
 ].sort((left, right) => left.number - right.number);
 
 export const totalLevelCount = levelDefinitions.length;
