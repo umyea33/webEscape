@@ -59,6 +59,7 @@ export type GameViewModel = {
 };
 
 const MIN_ZOOM = 0.25;
+const INITIAL_ZOOM = 0.4;
 const MAX_ZOOM = 1.55;
 
 function formatTime(seconds: number): string {
@@ -101,7 +102,7 @@ export function useGameViewModel(
   const [graphSnapshot, setGraphSnapshot] = useState<GraphSnapshot>(() => createGraphSnapshot(activeLevel));
   const [livesRemaining, setLivesRemaining] = useState(activeLevel.getLivesRemaining());
   const [showGrid, setShowGrid] = useState(false);
-  const [zoom, setZoom] = useState(0.5);
+  const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const [blockedNodeId, setBlockedNodeId] = useState<number | null>(null);
   const [blockedEventToken, setBlockedEventToken] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -117,7 +118,7 @@ export function useGameViewModel(
     setBlockedEventToken(0);
     setIsCompleting(false);
     setShowGrid(false);
-    setZoom(0.5);
+    setZoom(INITIAL_ZOOM);
     setTimeRemaining(activeLevel.timeLimit);
     setHasStartedTimer(false);
 
